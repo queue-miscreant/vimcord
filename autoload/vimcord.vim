@@ -50,33 +50,3 @@ function vimcord#scroll_cursor(lines_added)
 
   redraw
 endfunction
-
-function vimcord#open_link_under_cursor()
-  let regcontents = getreg("")
-  normal yiW
-  call VimcordVisitLink(getreg(""))
-  call setreg("", regcontents)
-  " invoke custom netrw opener (TODO)
-  normal! gx
-endfunction
-
-function vimcord#open_most_recent_link()
-  let prev = getcurpos()
-  let prev_search = getreg("/")
-
-  try
-    exe "normal $?https\\{0,1\\}:\\/\\/.\\+\\.[^` \\x1b]\\+\<cr>"
-  catch
-    return
-  endtry
-
-  let regcontents = getreg("")
-  normal yiW
-  call VimcordVisitLink(getreg(""))
-  call setreg("", regcontents)
-  "TODO
-  normal! gx
-
-  call cursor(prev[1:])
-  call setreg("/", prev_search)
-endfunction

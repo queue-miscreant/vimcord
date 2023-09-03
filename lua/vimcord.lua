@@ -3,29 +3,17 @@ if vimcord == nil then vimcord = {} end
 LINKS_NAMESPACE = vim.api.nvim_create_namespace("vimcord-links")
 
 function vimcord.init()
-  local old_window = vim.api.nvim_get_current_win()
-  -- parse input
-  local buf_lines = {}
-  local content = {}
-  -- for i = 1, #input do
-  --   local text = input[i][1]
-  --   local value = input[i][2]
-  --   if type(text) ~= "string" or value == nil then
-  --     error("Table value is not of form {string, value}")
-  --   end
-  --   table.insert(buf_lines, text)
-  --   table.insert(content, value)
-  -- end
-
   -- open split to an empty scratch
-  vim.cmd("new")
-  local win = vim.api.nvim_get_current_win()
-  local buf = vim.api.nvim_create_buf(true, true)
+  local current_buffer = vim.call("getbufinfo", vim.call("bufnr"))[1]
+  local win, buf
+  if current_buffer.linecount == 1 and current_buffer.changed == 0 and vim.call("getline", 1) == "" then
+    win = vim.api.nvim_get_current_win()
+  else
+    vim.cmd("split")
+    win = vim.api.nvim_get_current_win()
+  end
+  buf = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_win_set_buf(win, buf)
-
-  -- set buffer content
-  -- vim.api.nvim_buf_set_lines(buf, 0, -1, false, buf_lines)
-  -- vim.api.nvim_buf_set_var(buf, "selection", content)
 
   -- set options for new buffer/window
   vim.api.nvim_buf_set_var(buf, "discord_content", {})
@@ -42,7 +30,7 @@ function vimcord.append_to_buffer(buffer, discord_message, discord_extra)
     vim.api.nvim_buf_call(buffer, function()
       vim.api.nvim_buf_set_option(buffer, "modifiable", true)
       local line_number = #vim.b["discord_content"]
-      local new_extra = #discord_message 
+      local new_extra = #discord_message
       vim.call(
         "setbufline",
         buffer,
@@ -82,6 +70,7 @@ function vimcord.edit_buffer_message(buffer, discord_message, discord_extra)
       end
       if start_line == math.huge then return end
 
+      vim.api.nvim_buf_clear_namespace(buffer, LINKS_NAMESPACE, start_line, end_line + 1)
       if start_line + 1 <= end_line then
         vim.call(
           "deletebufline",
@@ -125,6 +114,7 @@ function vimcord.delete_buffer_message(buffer, discord_message_id)
       end
       if start_line == math.huge then return end
 
+      vim.api.nvim_buf_clear_namespace(buffer, LINKS_NAMESPACE, start_line, end_line + 1)
       vim.call(
         "deletebufline",
         buffer,
@@ -141,18 +131,24 @@ end
 
 function vimcord.recolor_visited_links(buffer, unvisited)
   vim.api.nvim_buf_set_option(buffer, "modifiable", true)
-  local visited_color = vim.g["vimcord_visited_link_color"]
+
+  --fetch the cursor
+  local window = vim.call("bufwinid", buffer)
+  local cursor = vim.call("getcurpos", window)
 
   -- even in vimscript, this would be an execute command, so I'm not torn up about it being here
   for _, j in pairs(unvisited) do
     local escape_slashes = j:gsub("/", "\\/")
     pcall(function()
       vim.cmd(
-        "%sno/\\(\\%x1B\\)100 \\(" .. escape_slashes ..
-        "\\%x1B\\)/\\1" .. visited_color .. " \\2/g"
+        "keeppatterns %sno/\\(\\%x1B\\)100 \\(" .. escape_slashes ..
+        " \\%x1B\\)/\\1VL \\2/g"
       )
     end)
   end
+
+  --and restore it
+  vim.call("setpos", ".", cursor)
 
   vim.api.nvim_buf_set_option(buffer, "modifiable", false)
 end
@@ -175,13 +171,23 @@ function vimcord.add_link_extmarks(buffer, message_id, opengl_data)
     return
   end
 
+  local window = vim.call("bufwinid", buffer)
+  local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
+  local split_width = vim.split(vim.split(bufindentopt, "shift:")[2], ",")[1]
+
   vim.api.nvim_buf_set_extmark(
     buffer,
     LINKS_NAMESPACE,
     line_number - 1,
     0,
     {
-      virt_lines=opengl_data
+      virt_lines=vim.tbl_map(
+        function(opengl)
+          table.insert(opengl, 1, {(" "):rep(split_width), "None"})
+          return opengl
+        end,
+        opengl_data
+      )
     }
   )
 

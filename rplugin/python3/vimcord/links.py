@@ -52,7 +52,7 @@ async def get_opengraph(link, *args, loop=None):
         else:
             # don't bother curling again if this isn't an html page
             content = response.headers.get("Content-Type")
-            no_head = not content.find("text/html")
+            no_head = content.find("text/html") == -1
 
     if not no_head:
         for meta_tag in (await open_and_parse_meta(link, loop=loop)):
@@ -69,6 +69,7 @@ async def get_opengraph(link, *args, loop=None):
                 full[prop] = [prev]
             full[prop].append(content)
 
+    log.debug("Got opengraph: %s", full)
     if not args:
         return full
     if len(args) == 1:
@@ -78,88 +79,93 @@ async def get_opengraph(link, *args, loop=None):
 class SpecialOpeners:
     OPENERS = {
         "twitter": re.compile(r"twitter\.com/.+/status"),
+        "tenor": re.compile("tenor.com/view"),
     }
 
     @classmethod
-    def attempt(cls, bridge, link):
+    def attempt(cls, link):
         for opener, regex in cls.OPENERS.items():
             log.debug("Trying opener %s", opener)
             if regex.search(link):
-                log.debug("Success!")
-                return getattr(cls, opener)(bridge, link)
+                return getattr(cls, opener)(link)
         return None
 
     @staticmethod
-    async def title_and_description(bridge, link):
+    async def title_and_description(link):
         # TODO: whitelist/blacklist links
         log.debug("Using default opener!")
-        title, description = await get_opengraph(link, "title", "description")
-        if title is not None and description is not None:
-            if not description:
-                return [[[title, "VimcordOGTitle"]]]
-            if not title:
-                return [[[description, "VimcordOGDescription"]]]
-            return [
-                [[title, "VimcordOGTitle"]],
-                [[description, "VimcordOGDescription"]]
-            ]
-        return []
+        ret = []
+
+        site_name, title, description = await get_opengraph(
+            link,
+            "site_name",
+            "title",
+            "description"
+        )
+        if title is not None:
+            if site_name is not None:
+                ret.append([
+                    [site_name + ": ", "VimcordOGDefault"],
+                    [title, "VimcordOGTitle"]
+                ])
+            else:
+                ret.append([[title, "VimcordOGTitle"]])
+        if description is not None:
+            ret.append([[description, "VimcordOGDescription"]])
+        return ret
 
     @staticmethod
-    async def twitter(bridge, link):
-        mobile_link = link.find("mobile.twitter")
-        if mobile_link != -1:
-            link = link[:mobile_link] + link[mobile_link+7:]
+    async def twitter(link):
+        # open through vxtwitter for opengraph
+        re.sub("(https?://)(www.|mobile.|vx)?(twitter)", "\\1fx\\2", link)
 
         # title, image, video, desc
-        meta_tags = await open_and_parse_meta(
+        title, description, images, video = await get_opengraph(
             Request(link, headers={"User-Agent": "Twitterbot"}),
+            "title",
+            "description",
+            "image",
+            "video"
         )
-        image = [i["content"] for i in meta_tags if i.get("itemprop") == "contentUrl"]
-        title = next(filter(
-            lambda x: x.get("property") == "og:title",
-            meta_tags
-        ), { "content": "" })["content"]
-        desc = next(filter(
-            lambda x: x.get("property") == "og:description",
-            meta_tags
-        ), { "content": "" })["content"]
-        has_video = any(map(
-            lambda x: x == "Embedded video",
-            [i["content"] for i in meta_tags if i.get("itemprop") == "description"]
-        ))
 
-        #no, I'm not kidding, twitter double-encodes the HTML entities
-        #but most parsers are insensitive to this because of the following:
-        #"&amp;amp;..." = "(&amp;)..." -> "(&)amp;..." -> "(&amp;)..." -> "&..."
-        try:
-            who = unescape(title[:title.rfind(" on Twitter")])
-            desc = unescape(desc[1:-1]) #remove quotes
-        except AttributeError:
-            return [[["Curl failed to find tag!", "VimcordError"]]]
+        who = re.sub("on (Twitter|X)", "", title or "")
 
-        disp = [[[who, "VimcordOGTitle"]], [[desc, "VimcordOGDescription"]]]
+        disp = [
+                [["Twitter: ", "VimcordOGDefault"], [who, "VimcordOGTitle"]],
+            *[[[i, "VimcordOGDescription"]]
+              for i in description.split("\n") if i.rstrip()]
+        ]
         additional = ""
-        if has_video:
+        if video is not None:
             additional = "1 video"
-        elif len(image) == 1:
-            additional = "1 image"
-        elif image:
-            additional = f"{len(image)} images"
+        elif images:
+            if isinstance(images, str):
+                additional = "1 image"
+            else:
+                additional = f"{len(images)} images"
 
         if additional:
-            disp.append([additional, "VimcordAdditional"])
+            disp.append([[additional, "VimcordAdditional"]])
 
         return disp
 
-async def get_link_content(bridge, link):
-    if (coro := SpecialOpeners.attempt(bridge, link)) is not None:
+    @staticmethod
+    async def tenor(link):
+        return []
+
+async def get_link_content(link):
+    if (coro := SpecialOpeners.attempt(link)) is not None:
         return await coro
-    return await SpecialOpeners.title_and_description(bridge, link)
+    return await SpecialOpeners.title_and_description(link)
 
 # for testing purposes
 if __name__ == "__main__":
     import sys
     import json
-    ret = asyncio.run(get_opengraph(sys.argv[1]), debug=True)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    log.addHandler(handler)
+
+    # ret = asyncio.run(get_opengraph(sys.argv[1]), debug=True)
+    ret = asyncio.run(get_link_content(sys.argv[1]), debug=True)
     print(json.dumps(ret))

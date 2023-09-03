@@ -1,9 +1,11 @@
 setlocal conceallevel=2
-setlocal concealcursor=nvic
+setlocal concealcursor=nv
+setlocal nonumber
+
 setlocal wrap
 setlocal linebreak
 setlocal breakindent
-setlocal nonumber
+setlocal breakindentopt=shift:4
 
 " TODO: additional data (from opengraph) as extmarks
 function s:set_youtube_extmark()
@@ -47,15 +49,11 @@ function s:set_youtube_extmark()
 endfunction
 
 function s:strip_colors(event)
-  if a:event["operator"] !=# "y"
-    return
-  endif
-
   let new_reg = map(
         \ a:event["regcontents"],
         \ { _, x -> substitute(
           \ x,
-          \ "\x1bc..{\\([^{}]\\+\\)}\x1b",
+          \ "\x1b.. {\\([^{}]\\+\\)} \x1b",
           \ "\\1",
           \ "" )
         \ } )
@@ -81,7 +79,7 @@ nmap <silent><buffer> D :<c-u>.call vimcord#action#delete()<cr>
 nmap <silent><buffer> r :<c-u>.call vimcord#action#edit()<cr>
 nmap <silent><buffer> R :<c-u>.call vimcord#action#edit()<cr>
 
-nmap <silent><buffer> gx :<c-u>call vimcord#open_link_under_cursor()<cr>
-nmap <silent><buffer> <c-g> :<c-u>call vimcord#open_most_recent_link()<cr>
+nmap <silent><buffer> gx :<c-u>call vimcord#link#open_under_cursor()<cr>
+nmap <silent><buffer> <c-g> :<c-u>call vimcord#link#open_most_recent()<cr>
 
 nmap <silent><buffer> A :<c-u>call vimcord#action#write_channel()<cr>

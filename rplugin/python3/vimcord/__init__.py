@@ -9,7 +9,6 @@ class Vimcord:
         self.nvim = nvim
         self.discord_username = nvim.api.get_var("vimcord_discord_username")
         self.discord_password = nvim.api.get_var("vimcord_discord_password")
-        self.visited_link_color = nvim.api.get_var("vimcord_visited_link_color")
 
         self.socket_path = "/tmp/vimcord_server"
 

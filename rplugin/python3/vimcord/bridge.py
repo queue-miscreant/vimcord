@@ -18,6 +18,7 @@ class DiscordBridge:
     def __init__(self, plugin):
         self.plugin = plugin
         self.discord_pipe = None
+        plugin.nvim.loop.set_exception_handler(self.handle_exception)
 
         self._buffer = plugin.nvim.lua.vimcord.init()
 
@@ -104,7 +105,7 @@ class DiscordBridge:
 
     async def add_link_extmarks(self, message_id, links):
         formatted_opengraph = await asyncio.gather(*[
-            get_link_content(self, link) for link in links
+            get_link_content(link) for link in links
         ])
         # flatten results
         # TODO: intercalate?
@@ -140,39 +141,53 @@ class DiscordBridge:
                 [format_channel(post.channel)],
                 {
                     "channel_id": post.channel.id,
-                    "server_id":  post.server.id,
+                    "server_id":  (post.server.id if post.server is not None else None),
                 }
             )
 
         links, message = clean_post(self, post)
         self.plugin.nvim.async_call(
-            lambda x,y,z: self.plugin.nvim.lua.vimcord.append_to_buffer(x,y,z),
-            self._buffer,
+            self._on_message,
             message.split("\n"),
+            post,
+            links
+        )
+
+    def _on_message(self, message, post, links):
+        self.plugin.nvim.lua.vimcord.append_to_buffer(
+            self._buffer,
+            message,
             {
                 "message_id": post.id,
                 "channel_id": post.channel.id,
-                "server_id":  post.server.id,
+                "server_id":  (post.server.id if post.server is not None else None),
                 "raw_message": post.content, # TODO ultimately unnecessary?
-            }
+            },
         )
         if links:
             self.plugin.nvim.loop.create_task(
                 self.add_link_extmarks(post.id, links)
             )
 
-    async def on_message_edit(self, post):
+    async def on_message_edit(self, _, post):
         links, message = clean_post(self, post)
         self.plugin.nvim.async_call(
-            lambda x,y,z: self.plugin.nvim.lua.vimcord.edit_buffer_message(x,y,z),
-            self._buffer,
+            self._on_message_edit,
             message.split("\n"),
+            post,
+            links
+        )
+
+    def _on_message_edit(self, message, post, links):
+        self.plugin.nvim.lua.vimcord.edit_buffer_message(
+            self._buffer,
+            message,
             {
                 "message_id": post.id,
                 "channel_id": post.channel.id,
-                "server_id":  post.server.id,
+                "server_id":  (post.server.id if post.server is not None else None),
                 "raw_message": post.content, # TODO ultimately unnecessary?
-            }
+            },
         )
         if links:
             self.plugin.nvim.loop.create_task(
@@ -188,3 +203,12 @@ class DiscordBridge:
 
     async def on_dm_update(self, dm):
         pass
+
+    def handle_exception(self, loop, context):
+        self.plugin.nvim.async_call(
+            self.plugin.nvim.api.notify,
+            "An unknown error occurred!",
+            4,
+            {}
+        )
+        log.error("An error occurred in the loop: %s", context)

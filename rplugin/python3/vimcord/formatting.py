@@ -4,8 +4,8 @@ from vimcord.links import LINK_RE
 def syntax_color(color, text, literal=False):
     '''This is how the syntax plugin expects colors'''
     if literal:
-        return f"\x1b{color} {text}\x1b"
-    return f"\x1b{two56(color):02x} {text}\x1b"
+        return f"\x1b{color} {text} \x1b"
+    return f"\x1b{two56(color):02x} {text} \x1b"
 
 def ellipsize(string, width):
     if len(string) > width:
@@ -16,7 +16,7 @@ def color_visited_link(bridge, match):
     color = "100"
     link = match.group(1)
     if link in bridge.visited_links:
-        color = bridge.plugin.visited_color
+        color = "VL"
     return syntax_color(color, link, literal=True)
 
 def clean_post(bridge, post: discord.Message):

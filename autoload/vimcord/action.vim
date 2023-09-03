@@ -52,6 +52,10 @@ function vimcord#action#write_channel() range
   endfunction
 
   let channel_name = input("Server: ", "", "customlist,Completer")
+  if index(discord_servers, channel_name) == -1
+    echo "Server name not found"
+    return
+  endif
   let content = input("Message: ")
   if content !=# ""
     call VimcordInvokeDiscordAction("try_post_server", channel_name, content)

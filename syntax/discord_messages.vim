@@ -2,6 +2,12 @@ if exists("b:current_syntax")
   finish
 endif
 
+" Separators
+syn region discordChannel start="^ ---" end="$"
+
+hi def link discordNone None
+hi def link discordChannel LineNr
+
 " Code shamelessly taken from AnsiEscPlugin
 function s:to_hex(color_number)
 " constant colors
@@ -41,23 +47,22 @@ function s:to_hex(color_number)
   endif
 endfunction
 
-syn region discordColorDefault matchgroup=discordNone
-      \  start="\%x1B " end="\%x1B" concealends
-syn region discordColorDefault2 matchgroup=discordNone
-      \  start="\%x1B100 " end="\%x1B" concealends
+syn region discordColorDefault matchgroup=None
+      \  start="\%x1B " end=" \%x1B" concealends
+syn region discordColorDefault2 matchgroup=None
+      \  start="\%x1B100 " end=" \%x1B" concealends
 hi def link discordColorDefault None
 hi def link discordColorDefault2 discordColorDefault
 
 " Dynamic color escapes based on (for example) post contents
 for i in range(256)
-  exe "syn region discordColor" . i . " matchgroup=discordNone"
-        \ . " start=\"\\%x1B" . printf("%02x", i) . " \" end=\"\\%x1B\""
+  exe "syn region discordColor" . i . " matchgroup=None"
+        \ . " start=\"\\%x1B" . printf("%02x", i) . " \" end=\" \\%x1B\""
         \ . " concealends"
   exe "hi default discordColor" . i . " guifg=" . s:to_hex(i) . " ctermfg=" . i
 endfor
 
-" Separators
-syn region discordChannel start="^ ---" end="$"
-
-hi def link discordNone None
-hi def link discordChannel LineNr
+" Extra
+syn region discordVisitedLink matchgroup=None
+      \  start="\%x1BVL " end=" \%x1B" concealends
+hi def link discordVisitedLink discordColor244
