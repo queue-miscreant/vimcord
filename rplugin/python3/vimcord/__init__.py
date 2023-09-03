@@ -11,6 +11,8 @@ class Vimcord:
         self.discord_password = nvim.api.get_var("vimcord_discord_password")
         self.visited_link_color = nvim.api.get_var("vimcord_visited_link_color")
 
+        self.socket_path = "/tmp/vimcord_server"
+
         self.discord_instance = None
         self.bridge = None
 
@@ -25,7 +27,7 @@ class Vimcord:
 
     @pynvim.function("VimcordInvokeDiscordAction", sync=True)
     def invoke_discord_action(self, args):
-        if self.bridge is None:
+        if self.bridge is None or self.bridge.discord_pipe is None:
             self.nvim.api.notify(
                 "No running discord detected",
                 4,

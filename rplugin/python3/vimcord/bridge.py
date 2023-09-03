@@ -1,7 +1,10 @@
 import asyncio
 import logging
+import os.path
+import shlex
 
-from vimcord.client import VimcordClient
+from vimcord.pickle_pipe import PickleClientProtocol
+import vimcord.local_discord_server as local_discord_server
 from vimcord.formatting import format_channel, clean_post
 from vimcord.links import get_link_content, LINK_RE
 
@@ -14,13 +17,65 @@ class DiscordBridge:
     '''
     def __init__(self, plugin):
         self.plugin = plugin
-        self.discord = VimcordClient(self)
+        self.discord_pipe = None
 
         self._buffer = plugin.nvim.lua.vimcord.init()
 
         self._last_channel = None
         self.all_messages = {}
         self.visited_links = set()
+
+        self._unmuted_channels = []
+        self.user = None
+
+        plugin.nvim.loop.create_task(
+            self.start_discord_client_server(plugin.socket_path)
+        )
+
+    async def start_discord_client_server(self, path):
+        '''Spawn a local discord server as a daemon and set the discord pipe object'''
+        server_running = os.path.exists(path) and os.system(f"lsof {shlex.quote(path)}") == 0
+        if not server_running:
+            log.debug("Spawning daemon...")
+            local_discord_server.spawn_daemon(path)
+
+        log.debug("Connecting to daemon...")
+        while True:
+            try:
+                _, self.discord_pipe = await self.plugin.nvim.loop.create_unix_connection(
+                    PickleClientProtocol,
+                    path=path
+                )
+                break
+            except (FileNotFoundError, ConnectionRefusedError):
+                await asyncio.sleep(1)
+        log.debug("Connected to daemon process!")
+
+        if not server_running:
+            self.discord_pipe.create_remote_task(
+                "discord.start",
+                self.plugin.discord_username,
+                self.plugin.discord_password
+            )
+            self.discord_pipe.event("servers_ready", self.on_ready)
+        else:
+            await self.on_ready()
+
+        # TODO: make this a little easier to access
+        self.discord_pipe.event("message", self.on_message)
+        self.discord_pipe.event("message_edit", self.on_message_edit)
+        self.discord_pipe.event("message_delete", self.on_message_delete)
+        self.discord_pipe.event("dm_update", self.on_dm_update)
+
+    @property
+    def unmuted_channels(self):
+        return [i for server in self._unmuted_channels for i in server[1:]]
+
+    def get_channel_by_name(self, channel_name):
+        for channel in self.unmuted_channels:
+            if channel_name == format_channel(channel, raw=True):
+                return channel
+        return None
 
     def visit_link(self, link):
         log.debug("Visiting link %s", repr(link))
@@ -63,16 +118,18 @@ class DiscordBridge:
         )
 
     # DISCORD CALLBACKS --------------------------------------------------------
-    def on_discord_connected(self):
+    async def on_ready(self):
+        self._unmuted_channels = await self.discord_pipe.wait_for("discord.unmuted_channels")
+        self._user = await self.discord_pipe.wait_for("discord.user")
+
         self.plugin.nvim.async_call(
             lambda x,y,z: self.plugin.nvim.lua.vimcord.append_to_buffer(x,y,z),
             self._buffer,
-            ["Connected to Discord!"],
+            ["Got Discord servers!"],
             {}
         )
 
-
-    def on_message(self, post):
+    async def on_message(self, post):
         self.all_messages[post.id] = post
 
         if self._last_channel != post.channel:
@@ -104,7 +161,7 @@ class DiscordBridge:
                 self.add_link_extmarks(post.id, links)
             )
 
-    def on_message_edit(self, post):
+    async def on_message_edit(self, post):
         links, message = clean_post(self, post)
         self.plugin.nvim.async_call(
             lambda x,y,z: self.plugin.nvim.lua.vimcord.edit_buffer_message(x,y,z),
@@ -122,12 +179,12 @@ class DiscordBridge:
                 self.add_link_extmarks(post.id, links)
             )
 
-    def on_message_delete(self, post):
+    async def on_message_delete(self, post):
         self.plugin.nvim.async_call(
             lambda x,y: self.plugin.nvim.lua.vimcord.delete_buffer_message(x, y),
             self._buffer,
             post.id,
         )
 
-    def on_dm_update(self, dm):
+    async def on_dm_update(self, dm):
         pass

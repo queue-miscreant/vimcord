@@ -23,7 +23,7 @@ def clean_post(bridge, post: discord.Message):
     embeds = [i["url"] for i in post.attachments]
     links = LINK_RE.findall(post.clean_content) + embeds
     #pre-visit all links made by me
-    if post.author == bridge.discord.user:
+    if post.author == bridge.user:
         bridge.visited_links.union(links)
 
     # clean up post content
