@@ -84,7 +84,7 @@ async def get_opengraph(link, *args, loop=None):
 class SpecialOpeners:
     OPENERS = {
         "twitter": re.compile(r"twitter\.com/.+/status"),
-        "tenor": re.compile("tenor.com/view"),
+        "tenor": re.compile("tenor.com/(view)?"),
         "discord": re.compile("discord.com/channels"),
     }
 
@@ -111,13 +111,22 @@ class SpecialOpeners:
         if title is not None:
             if site_name is not None:
                 ret.append([
-                    [site_name + ": ", "VimcordOGDefault"],
-                    [title, "VimcordOGTitle"]
+                    [
+                        (site_name if isinstance(site_name, str) else site_name[0]) + ": ",
+                        "VimcordOGSiteName"
+                    ],
+                    [title if isinstance(title, str) else title[0], "VimcordOGTitle"]
                 ])
             else:
-                ret.append([[title, "VimcordOGTitle"]])
+                ret.append([[
+                    title if isinstance(title, str) else title[0],
+                    "VimcordOGTitle"
+                ]])
         if description is not None:
-            ret.append([[description, "VimcordOGDescription"]])
+            ret.append([[
+                description if isinstance(title, str) else title[0],
+                "VimcordOGDescription"
+            ]])
         return ret
 
     @staticmethod

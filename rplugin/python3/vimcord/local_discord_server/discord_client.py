@@ -71,11 +71,12 @@ class VimcordClient(discord.Client):
         for channel in direct_messages:
             self._dm_ordering[channel["id"]] = channel["last_message_id"]
         self._really_connected = True
-        log.debug("REALLY READY")
         self.dispatch("really_ready")
 
     def is_muted(self, server, channel):
         '''Check if a channel is muted, per its settings'''
+        if server is None:
+            return False
         try:
             settings = self._notify[server.id]
             if "channel_overrides" not in settings \

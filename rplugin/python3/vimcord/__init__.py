@@ -69,12 +69,16 @@ class Vimcord:
         self.bridge.visit_link(link)
 
     def handle_exception(self, loop, context):
+        if (message := context.get("exception")) is None:
+            log.debug("%s", message)
+            return
         formatted = traceback.format_exception(context["exception"])
         log.error("Error occurred:\n%s", "".join(formatted))
 
         self.nvim.async_call(
             self.nvim.api.notify,
-            "An unknown error occurred!",
+            # "An unknown error occurred!",
+            "Error occurred:\n%s" % "".join(formatted),
             4,
             {}
         )

@@ -1,3 +1,8 @@
+function vimcord#buffer#add_extra_data(discord_channels_dict, user_id)
+  let b:vimcord_channel_names = a:discord_channels_dict
+  let b:vimcord_discord_user_id = a:user_id
+endfunction
+
 " Return the first line and last lines that match the message id given
 " Lines returned are 0-indexed!
 function vimcord#buffer#lines_by_message_id(message_id)
@@ -107,9 +112,9 @@ endfunction
 function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
   let [start_line, end_line] = vimcord#buffer#lines_by_message_id(a:message_id)
 
-  if start_line == -1
+  if end_line + 1 > line("$")
     echohl ErrorMsg
-    echo "Could not add links to message id " .. message_id .. "!"
+    echom "Could not add links to message id " .. message_id .. "!"
     echohl None
     return
   end

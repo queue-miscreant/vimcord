@@ -17,6 +17,21 @@ let g:vimcord_discord_password = get(g:, "vimcord_discord_password", "")
 " g:VIMCORD_VIDEO_MIMES = ["image/gif", "video/.*"]
 
 hi def link VimcordOGDefault LineNr
+hi def link VimcordOGSiteName VimcordOGDefault
 hi def link VimcordOGTitle Title
-hi def link VimcordOGDescription VimcordOGDefault
+hi def link VimcordOGDescription Conceal
 hi def link VimcordAdditional NonText
+
+
+function VimcordTest()
+  if exists("b:vimcord_target_channel")
+    return b:vimcord_target_channel
+  endif
+  return ""
+endfunction
+
+if !exists("g:airline_filetype_overrides")
+  let g:airline_filetype_overrides = {}
+endif
+" TODO: non-user-invasive
+let g:airline_filetype_overrides["discord_messages"] = ["Discord", "%{VimcordTest()}"]

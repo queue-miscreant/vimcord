@@ -40,7 +40,7 @@ class DiscordBridge:
                 self.plugin.discord_password
             )
         else:
-            await self.on_ready()
+            asyncio.create_task(self.on_ready())
 
         # bind events
         self.discord_pipe.event("servers_ready", self.on_ready)
@@ -106,24 +106,43 @@ class DiscordBridge:
     # DISCORD CALLBACKS --------------------------------------------------------
     async def on_ready(self):
         self._unmuted_channels = await self.discord_pipe.awaitable.unmuted_channels()
-        self._user = await self.discord_pipe.awaitable.user()
+        self.user = await self.discord_pipe.awaitable.user()
         start_messages = await self.discord_pipe.awaitable.connection.messages()
+        muted = await asyncio.gather(*[self.discord_pipe.awaitable.is_muted(
+            getattr(i, "server", None),
+            i.channel
+        ) for i in start_messages])
 
         # TODO: write prepended messages all at the same time
-        def messages():
-            for post in start_messages:
-                self._on_message(post)
+        def on_ready_callback():
+            self.plugin.nvim.api.call_function(
+                "vimcord#buffer#add_extra_data",
+                [
+                    { i.id: format_channel(i, raw=True)
+                      for i in self.unmuted_channels },
+                    self.user.id
+                ]
+            )
+            for post, is_muted in zip(start_messages, muted):
+                if not is_muted:
+                    self._on_message(post)
 
-        self.plugin.nvim.async_call(messages)
+        self.plugin.nvim.async_call(on_ready_callback)
 
     async def on_message(self, post):
-        self.all_messages[post.id] = post
+        muted = await self.discord_pipe.awaitable.is_muted(
+            getattr(post, "server", None),
+            post.channel
+        )
+        if muted:
+            return
         self.plugin.nvim.async_call(
             self._on_message,
             post,
         )
 
     def _on_message(self, post):
+        self.all_messages[post.id] = post
         if self._last_channel != post.channel:
             self._last_channel = post.channel
             self.plugin.nvim.lua.vimcord.append_to_buffer(
@@ -143,7 +162,6 @@ class DiscordBridge:
                 "message_id": post.id,
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
-                "raw_message": post.content, # TODO ultimately unnecessary?
             },
         )
         if links:
@@ -152,6 +170,12 @@ class DiscordBridge:
             )
 
     async def on_message_edit(self, _, post):
+        muted = await self.discord_pipe.awaitable.is_muted(
+            getattr(post, "server", None),
+            post.channel
+        )
+        if muted:
+            return
         self.plugin.nvim.async_call(
             self._on_message_edit,
             post,
@@ -166,7 +190,6 @@ class DiscordBridge:
                 "message_id": post.id,
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
-                "raw_message": post.content, # TODO ultimately unnecessary?
             },
         )
         if links:
@@ -175,6 +198,12 @@ class DiscordBridge:
             )
 
     async def on_message_delete(self, post):
+        muted = await self.discord_pipe.awaitable.is_muted(
+            getattr(post, "server", None),
+            post.channel
+        )
+        if muted:
+            return
         self.plugin.nvim.async_call(
             lambda x,y: self.plugin.nvim.lua.vimcord.delete_buffer_message(x, y),
             self._buffer,

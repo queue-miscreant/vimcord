@@ -10,6 +10,7 @@ import gzip
 import json
 import logging
 import pickle
+import traceback
 
 log = logging.getLogger(__name__)
 log.setLevel("INFO")
@@ -71,12 +72,13 @@ class PickleServerProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         '''Reply to data request with pickle'''
-        try:
-            if not data.rstrip(): return
-            unpickled = decode_for_pipe(data)
-            asyncio.get_event_loop().create_task(self._reply(unpickled))
-        except Exception as e:
-            log.error("Error %s occurred during read!", e, stack_info=True)
+        for i in data.split(b"\n"):
+            try:
+                if not i.rstrip(): return
+                unpickled = decode_for_pipe(i)
+                asyncio.get_event_loop().create_task(self._reply(unpickled))
+            except Exception as e:
+                log.error("Error %s occurred during read!\n%s", e, traceback.format_exception(e))
 
     def connection_lost(self, exc):
         '''Process communication closed. Call close event.'''
@@ -185,7 +187,7 @@ class PickleClientProtocol(asyncio.Protocol):
                         continue
                     waiting_future.set_result(unpickle[1])
             except Exception as e:
-                log.error("Error occurred in received data: %s", e, stack_info=True)
+                log.error("Error %s occurred during read!\n%s", e, traceback.format_exception(e))
 
     def connection_lost(self, exc):
         '''Process communication closed. Call close event.'''

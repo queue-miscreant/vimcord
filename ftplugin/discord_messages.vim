@@ -38,8 +38,8 @@ nmap <silent><buffer> I :<c-u>.call vimcord#action#open_reply(1)<cr>
 nmap <silent><buffer> X :<c-u>.call vimcord#action#delete()<cr>
 nmap <silent><buffer> D :<c-u>.call vimcord#action#delete()<cr>
 
-nmap <silent><buffer> r :<c-u>.call vimcord#action#edit()<cr>
-nmap <silent><buffer> R :<c-u>.call vimcord#action#edit()<cr>
+nmap <silent><buffer> r :<c-u>.call vimcord#action#edit_start()<cr>
+nmap <silent><buffer> R :<c-u>.call vimcord#action#edit_start()<cr>
 
 nmap <silent><buffer> gx :<c-u>call vimcord#link#open_under_cursor()<cr>
 nmap <silent><buffer> <c-g> :<c-u>call vimcord#link#open_most_recent()<cr>

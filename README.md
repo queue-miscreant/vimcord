@@ -60,16 +60,17 @@ Done:
 - link visiting
 - opengraph extmarks
 - Add message to named channel (no replies) (KINDA)
+- rely on vimscript functions more
+- status bar
+- Remove `raw_message` from data sent to buffer
 
 Todo:
 - reply extmarks
 - sign column tricks for private messages (display user connection status?)
 - sorting buffer
-- rely on vimscript functions more
 - reply @ completion
-- Remove `raw_message` from data sent to buffer
+
 - Syntax for discord markdown-like
-- status bar
 
 
 - Future

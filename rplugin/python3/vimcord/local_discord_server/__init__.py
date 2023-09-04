@@ -6,6 +6,7 @@ import shlex
 from vimcord.pickle_pipe import PickleClientProtocol
 from vimcord.local_discord_server.server import start_server
 
+#TODO: close all logs after forking
 def spawn_daemon(func, *args):
     '''Spawn a daemon process running start_server'''
     pid = os.fork()

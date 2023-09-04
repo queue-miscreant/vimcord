@@ -85,16 +85,39 @@ class DiscordAction:
 
         self.discord.task.delete_message(message)
 
-    async def edit(self, message_data, content):
-        log.debug("%s", message_data)
+    async def tryedit(self, message_data):
         message_id = message_data.get("message_id")
         channel_id = message_data.get("channel_id")
-        # if self.discord.get_channel(channel_id) is None:
-        #     return
+
         channel = await self.discord.awaitable.get_channel(channel_id)
         if channel is None:
             return
+        if (message := self.bridge.all_messages.get(message_id)) is None:
+            self.plugin.nvim.async_call(
+                self.plugin.nvim.api.notify,
+                "Cannot edit: could not find message",
+                4,
+                {}
+            )
+            return
 
+        if self.bridge.user.id != message.author.id:
+            self.plugin.nvim.async_call(
+                self.plugin.nvim.api.notify,
+                "Cannot edit: not the author of this message",
+                4,
+                {}
+            )
+            return
+
+        log.debug("HERE")
+        self.plugin.nvim.async_call(
+            self.plugin.nvim.api.call_function,
+            "vimcord#action#edit_end",
+             [str(message.content), message_id, channel_id]
+         )
+
+    async def edit(self, message_id, content):
         if (message := self.bridge.all_messages.get(message_id)) is None:
             return
 
@@ -103,10 +126,10 @@ class DiscordAction:
     def get_servers(self):
         return [format_channel(channel, raw=True) for channel in self.bridge.unmuted_channels]
 
-    async def try_post_server(self, channel_name, message):
-        channel = self.bridge.get_channel_by_name(channel_name)
+    async def try_post_channel(self, channel_id, message):
+        channel = await self.discord.awaitable.get_channel(channel_id)
         if channel is None:
-            log.debug("Could not find channel named %s", channel_name)
+            log.debug("Could not find channel %s", channel_id)
             return
 
         self.discord.task.send_message(channel, message)
