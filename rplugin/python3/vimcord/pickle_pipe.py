@@ -12,7 +12,7 @@ import logging
 import pickle
 
 log = logging.getLogger(__name__)
-log.setLevel("DEBUG")
+log.setLevel("INFO")
 
 class PicklePipeException(Exception):
     '''Exception object passed when pickling errors occur'''
@@ -190,6 +190,11 @@ class PickleClientProtocol(asyncio.Protocol):
     def connection_lost(self, exc):
         '''Process communication closed. Call close event.'''
 
+    def _call_event(self, event_name, args):
+        '''Run event callbacks for the events registered to event_name'''
+        log.info("Dispatching event %s", event_name)
+        asyncio.gather(*[handler(*args) for handler in self._events.get(event_name, [])])
+
     def event(self, event_name, handler):
         '''
         Bind event `handler` to event `event_name`.
@@ -208,6 +213,7 @@ class PickleClientProtocol(asyncio.Protocol):
         Request remote data from the server's reference object.
         The remote data can be a method, in which case it will be called with (*args)
         '''
+        log.info("Starting await for %s", action)
         self.transport.write(encode_for_pipe([
             self._request_number,
             action,
@@ -224,13 +230,33 @@ class PickleClientProtocol(asyncio.Protocol):
         '''
         Start a task on the remote server, without waiting for any results
         '''
+        log.info("Spawning remote task %s", action)
         self.transport.write(encode_for_pipe([
             -1,
             action,
             [ args, kwargs ]
         ]))
 
-    def _call_event(self, event_name, args):
-        '''Run event callbacks for the events registered to event_name'''
-        log.info("Dispatching event %s", event_name)
-        asyncio.gather(*[handler(*args) for handler in self._events.get(event_name, [])])
+    @property
+    def awaitable(self):
+        return PathBuilder(self.wait_for)
+
+    @property
+    def task(self):
+        return PathBuilder(self.create_remote_task)
+
+class PathBuilder:
+    '''
+    Path builder for pickle client/server interactions.
+    Makes invoking `wait_for` and `create_remote_task` easier.
+    '''
+    def __init__(self, func):
+        self._path = ""
+        self._func = func
+
+    def __call__(self, *args, **kwargs):
+        return self._func(self._path, *args, **kwargs)
+
+    def __getattr__(self, attr_name):
+        self._path += "." + attr_name
+        return self

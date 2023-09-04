@@ -163,23 +163,13 @@ class SpecialOpeners:
     async def discord(link):
         return []
 
-async def get_link_content(bridge, link):
+async def get_link_content(link):
     try:
         if (coro := SpecialOpeners.attempt(link)) is not None:
             return await coro
         return await SpecialOpeners.title_and_description(link)
     except LinkEmptyException:
         return []
-    except Exception as e:
-        log.error(e)
-        if bridge is None:
-            return
-        bridge.plugin.nvim.async_call(
-            bridge.plugin.nvim.api.notify,
-            f"An unexpected error occurred, {e}",
-            4,
-            {}
-        )
 
 # for testing purposes
 if __name__ == "__main__":
@@ -190,5 +180,5 @@ if __name__ == "__main__":
     log.addHandler(handler)
 
     # ret = asyncio.run(get_opengraph(sys.argv[1]), debug=True)
-    ret = asyncio.run(get_link_content(None, sys.argv[1]), debug=True)
+    ret = asyncio.run(get_link_content(sys.argv[1]), debug=True)
     print(json.dumps(ret))

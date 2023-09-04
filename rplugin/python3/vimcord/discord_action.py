@@ -39,32 +39,19 @@ class DiscordAction:
             )
 
     async def message(self, message_data, content, is_reply):
-        log.debug("%s", message_data)
         message_id = message_data.get("message_id")
         channel_id = message_data.get("channel_id")
-        # if (channel := self.discord.get_channel(channel_id)) is None:
-        channel = await self.discord.wait_for("discord.get_channel", channel_id)
 
         reference = {
             "channel_id": channel_id,
             "message_id": message_id,
         }
 
-        log.debug("FUCKING HERE %s %s %s", channel, content, reference)
-
+        channel = await self.discord.awaitable.get_channel(channel_id)
         if channel is None:
             return
 
-        # self.plugin.nvim.loop.create_task(
-        #     self.discord.send_message(
-        #         channel,
-        #         content,
-        #         reference=(reference if is_reply else None)
-        #     )
-        # )
-
-        self.discord.create_remote_task(
-            "discord.send_message",
+        self.discord.task.send_message(
             channel,
             content,
             reference=(reference if is_reply else None)
@@ -87,7 +74,7 @@ class DiscordAction:
         channel_id = message_data.get("channel_id")
         # if self.discord.get_channel(channel_id) is None:
         #     return
-        channel = await self.discord.wait_for("discord.get_channel", channel_id)
+        channel = await self.discord.awaitable.get_channel(channel_id)
         if channel is None:
             return
 
@@ -96,10 +83,7 @@ class DiscordAction:
 
         log.debug("%s", message)
 
-        # self.plugin.nvim.loop.create_task(
-        #     self.discord.delete_message(message)
-        # )
-        self.discord.create_remote_task("discord.delete_message", message)
+        self.discord.task.delete_message(message)
 
     async def edit(self, message_data, content):
         log.debug("%s", message_data)
@@ -107,21 +91,14 @@ class DiscordAction:
         channel_id = message_data.get("channel_id")
         # if self.discord.get_channel(channel_id) is None:
         #     return
-        channel = await self.discord.wait_for("discord.get_channel", channel_id)
+        channel = await self.discord.awaitable.get_channel(channel_id)
         if channel is None:
             return
 
         if (message := self.bridge.all_messages.get(message_id)) is None:
             return
 
-        # TODO: show edit success/failure
-        # self.plugin.nvim.loop.create_task(
-        #     self.discord.edit_message(
-        #         message,
-        #         content
-        #     )
-        # )
-        self.discord.create_remote_task("discord.edit_message", message, content)
+        self.discord.task.edit_message(message, content)
 
     def get_servers(self):
         return [format_channel(channel, raw=True) for channel in self.bridge.unmuted_channels]
@@ -132,19 +109,7 @@ class DiscordAction:
             log.debug("Could not find channel named %s", channel_name)
             return
 
-        # self.plugin.nvim.loop.create_task(
-        #     self.discord.send_message(
-        #         channel,
-        #         message
-        #     )
-        # )
-        self.discord.create_remote_task("discord.send_message", channel, message)
+        self.discord.task.send_message(channel, message)
 
     async def try_reconnect(self):
-        # self.plugin.nvim.loop.create_task(
-        #     self.discord.send_message(
-        #         channel,
-        #         message
-        #     )
-        # )
-        self.discord.create_remote_task("discord.connect")
+        self.discord.task.connect()
