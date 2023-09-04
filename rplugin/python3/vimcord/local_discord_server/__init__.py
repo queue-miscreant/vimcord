@@ -2,7 +2,6 @@ import asyncio
 import os
 import os.path
 import logging
-import sys
 import signal
 
 from vimcord.pickle_pipe import PickleServerProtocol
@@ -79,12 +78,14 @@ def spawn_daemon(pipe_file):
     if pid > 0:
         return pid
 
+    # in first child
     os.setsid()
     pid = os.fork()
     if pid > 0:
         log.debug("Child pid: %d", pid)
-        sys.exit(0)
+        os._exit(0)
 
+    # in second child
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -95,4 +96,4 @@ def spawn_daemon(pipe_file):
     finally:
         if os.path.exists(pipe_file):
             os.remove(pipe_file)
-        sys.exit(0)
+        os._exit(0)

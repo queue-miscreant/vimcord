@@ -60,15 +60,14 @@ class PickleServerProtocol(asyncio.Protocol):
     Events are of the form `["event", event_name, *data]`, where data comes from
     the event handler.
     '''
-    def __init__(self, obj, log: logging.Logger):
+    def __init__(self, obj):
         self.transport = None
         self.reference_object = obj
-        self.log = log
 
     def connection_made(self, transport):
         '''Process communication initiated. Save transport and send connected event.'''
         self.transport = transport
-        self.log.debug("Connected!")
+        log.debug("Connected!")
 
     def data_received(self, data):
         '''Reply to data request with pickle'''
@@ -77,19 +76,19 @@ class PickleServerProtocol(asyncio.Protocol):
             unpickled = decode_for_pipe(data)
             asyncio.get_event_loop().create_task(self._reply(unpickled))
         except Exception as e:
-            self.log.error("Error %s occurred during read!", e, stack_info=True)
+            log.error("Error %s occurred during read!", e, stack_info=True)
 
     def connection_lost(self, exc):
         '''Process communication closed. Call close event.'''
         self.transport = None
-        self.log.error("Connection lost! %s", exc)
+        log.error("Connection lost! %s", exc)
 
     def write(self, base, args):
         if self.transport is not None:
             try:
                 self.transport.write(encode_for_pipe(base + args))
             except pickle.PicklingError:
-                self.log.error("Could not pickle %s!", args)
+                log.error("Could not pickle %s!", args)
                 self.transport.write(encode_for_pipe(base + [PicklePipeException()]))
 
     async def _reply(self, unpickled):
@@ -104,12 +103,12 @@ class PickleServerProtocol(asyncio.Protocol):
 
         if request_id == -1:
             if asyncio.iscoroutinefunction(base):
-                self.log.debug("Creating task for coroutine %s", base)
+                log.info("Creating task for coroutine %s", base)
                 asyncio.get_event_loop().create_task(base(*args, **kwargs))
             else:
-                self.log.debug("Creating task for method %s", base)
+                log.info("Creating task for method %s", base)
                 asyncio.get_event_loop().call_soon(base, *args, **kwargs)
-                # self.log.error("Requested path (%s) is not a coroutine function!", verb)
+                # log.error("Requested path (%s) is not a coroutine function!", verb)
                 # self.write(
                 #     [request_id],
                 #     [PicklePipeException("Requested path is not a coroutine function!")]
@@ -117,14 +116,14 @@ class PickleServerProtocol(asyncio.Protocol):
             return
 
         if not callable(base):
-            self.log.debug("Got member %s", verb)
+            log.info("Got member %s", verb)
             self.write([request_id], [convert_return(base)])
             return
 
-        self.log.debug("Running method %s", verb)
+        log.info("Running method %s", verb)
         ret = base(*args, **kwargs)
         if asyncio.iscoroutine(ret):
-            self.log.debug("Awaiting coroutine")
+            log.info("Awaiting coroutine")
             ret = await ret
 
         self.write([request_id], [convert_return(ret)])
@@ -233,5 +232,5 @@ class PickleClientProtocol(asyncio.Protocol):
 
     def _call_event(self, event_name, args):
         '''Run event callbacks for the events registered to event_name'''
-        log.debug("Dispatching event %s", event_name)
+        log.info("Dispatching event %s", event_name)
         asyncio.gather(*[handler(*args) for handler in self._events.get(event_name, [])])

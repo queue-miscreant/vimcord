@@ -26,16 +26,27 @@ end
 function vimcord.append_to_buffer(buffer, discord_message, discord_extra)
   local window = vim.call("bufwinid", buffer)
 
+  local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
+  local split_width = tonumber(vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]) or 0
+
   status, result = pcall(function()
     vim.api.nvim_buf_call(buffer, function()
       vim.api.nvim_buf_set_option(buffer, "modifiable", true)
       local line_number = #vim.b["discord_content"]
       local new_extra = #discord_message
+
+      local k = 0
       vim.call(
         "setbufline",
         buffer,
         line_number + 1,
-        vim.tbl_map(function(v) return " " .. v end, discord_message)
+        vim.tbl_map(
+          function(v)
+            k = k + 1
+            return ((" "):rep(1 + (k ~= 1 and split_width or 0))) .. v
+          end,
+          discord_message
+        )
       )
       vim.call("vimcord#add_discord_data", discord_extra, new_extra)
 
@@ -54,6 +65,9 @@ end
 function vimcord.edit_buffer_message(buffer, discord_message, discord_extra)
   local window = vim.call("bufwinid", buffer)
 
+  local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
+  local split_width = tonumber(vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]) or 0
+
   status, result = pcall(function()
     vim.api.nvim_buf_call(buffer, function()
       vim.api.nvim_buf_set_option(buffer, "modifiable", true)
@@ -70,7 +84,8 @@ function vimcord.edit_buffer_message(buffer, discord_message, discord_extra)
       end
       if start_line == math.huge then return end
 
-      vim.api.nvim_buf_clear_namespace(buffer, LINKS_NAMESPACE, start_line, end_line + 1)
+      vim.api.nvim_buf_clear_namespace(buffer, LINKS_NAMESPACE, start_line - 1, end_line)
+      -- delete lines after first one of the message
       if start_line + 1 <= end_line then
         vim.call(
           "deletebufline",
@@ -79,11 +94,19 @@ function vimcord.edit_buffer_message(buffer, discord_message, discord_extra)
           end_line
         )
       end
+      -- then set the rest of the line to the new contents
+      local k = 0
       vim.call(
         "setbufline",
         buffer,
         start_line,
-        vim.tbl_map(function(v) return " " .. v end, discord_message)
+        vim.tbl_map(
+          function(v)
+            k = k + 1
+            return ((" "):rep(1 + (k ~= 1 and split_width or 0))) .. v
+          end,
+          discord_message
+        )
       )
       vim.call("vimcord#insert_discord_data", discord_extra, #discord_message, start_line, end_line)
 
@@ -114,7 +137,7 @@ function vimcord.delete_buffer_message(buffer, discord_message_id)
       end
       if start_line == math.huge then return end
 
-      vim.api.nvim_buf_clear_namespace(buffer, LINKS_NAMESPACE, start_line, end_line + 1)
+      vim.api.nvim_buf_clear_namespace(buffer, LINKS_NAMESPACE, start_line - 1, end_line)
       vim.call(
         "deletebufline",
         buffer,
@@ -171,9 +194,12 @@ function vimcord.add_link_extmarks(buffer, message_id, opengl_data)
     return
   end
 
+  -- sometimes on_message and on_message_exit come very close together
+  vim.api.nvim_buf_clear_namespace(buffer, LINKS_NAMESPACE, line_number - 1, line_number)
+
   local window = vim.call("bufwinid", buffer)
   local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
-  local split_width = vim.split(vim.split(bufindentopt, "shift:")[2], ",")[1]
+  local split_width = tonumber(vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]) or 0
 
   vim.api.nvim_buf_set_extmark(
     buffer,
@@ -190,6 +216,10 @@ function vimcord.add_link_extmarks(buffer, message_id, opengl_data)
       )
     }
   )
+
+  if vim.call("line", ".") == vim.call("line", "$") then
+    vim.cmd("normal zb")
+  end
 
   vim.api.nvim_buf_set_option(buffer, "modifiable", false)
 end

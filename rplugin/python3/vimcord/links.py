@@ -14,6 +14,9 @@ log.setLevel("DEBUG")
 LINK_RE = re.compile("(https?://.+?\\.[^`\\s]+)")
 UTF8_PARSER = HTMLParser(encoding='utf-8')
 
+class LinkEmptyException(Exception):
+    '''vimcord.links exception for catching empty curl results'''
+
 async def urlopen_async(link, loop=None):
     '''Awaitable urllib.request.urlopen; run in a thread pool executor'''
     if loop is None:
@@ -28,7 +31,9 @@ async def open_and_parse_meta(link, loop=None):
     '''Collect a list of all meta tags from the page at a URL'''
     html = await urlopen_async(link, loop=loop)
     if not html:
-        raise Exception(f"Curl failed for {repr(link)}")
+        raise LinkEmptyException(
+            f"Curl failed for {link.full_url if isinstance(link, Request) else link}"
+        )
 
     full = []
     for meta_tag in html_parse(html, parser=UTF8_PARSER).iterfind(".//meta"):
@@ -80,6 +85,7 @@ class SpecialOpeners:
     OPENERS = {
         "twitter": re.compile(r"twitter\.com/.+/status"),
         "tenor": re.compile("tenor.com/view"),
+        "discord": re.compile("discord.com/channels"),
     }
 
     @classmethod
@@ -153,10 +159,27 @@ class SpecialOpeners:
     async def tenor(link):
         return []
 
-async def get_link_content(link):
-    if (coro := SpecialOpeners.attempt(link)) is not None:
-        return await coro
-    return await SpecialOpeners.title_and_description(link)
+    @staticmethod
+    async def discord(link):
+        return []
+
+async def get_link_content(bridge, link):
+    try:
+        if (coro := SpecialOpeners.attempt(link)) is not None:
+            return await coro
+        return await SpecialOpeners.title_and_description(link)
+    except LinkEmptyException:
+        return []
+    except Exception as e:
+        log.error(e)
+        if bridge is None:
+            return
+        bridge.plugin.nvim.async_call(
+            bridge.plugin.nvim.api.notify,
+            f"An unexpected error occurred, {e}",
+            4,
+            {}
+        )
 
 # for testing purposes
 if __name__ == "__main__":
@@ -167,5 +190,5 @@ if __name__ == "__main__":
     log.addHandler(handler)
 
     # ret = asyncio.run(get_opengraph(sys.argv[1]), debug=True)
-    ret = asyncio.run(get_link_content(sys.argv[1]), debug=True)
+    ret = asyncio.run(get_link_content(None, sys.argv[1]), debug=True)
     print(json.dumps(ret))

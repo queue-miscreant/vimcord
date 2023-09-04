@@ -61,3 +61,7 @@ function vimcord#action#write_channel() range
     call VimcordInvokeDiscordAction("try_post_server", channel_name, content)
   endif
 endfunction
+
+function vimcord#action#reconnect()
+  call VimcordInvokeDiscordAction("try_reconnect")
+endfunction

@@ -31,7 +31,12 @@ class DiscordAction:
                 return
             self.ret = ret
         except Exception as e:
-            log.error(e, stack_info=True)
+            log.error("Error occurred in DiscordAction %s", e, stack_info=True)
+            self.plugin.nvim.api.notify(
+                f"Error occurred when running action {action_name}",
+                4,
+                {}
+            )
 
     async def message(self, message_data, content, is_reply):
         log.debug("%s", message_data)
@@ -134,3 +139,12 @@ class DiscordAction:
         #     )
         # )
         self.discord.create_remote_task("discord.send_message", channel, message)
+
+    async def try_reconnect(self):
+        # self.plugin.nvim.loop.create_task(
+        #     self.discord.send_message(
+        #         channel,
+        #         message
+        #     )
+        # )
+        self.discord.create_remote_task("discord.connect")

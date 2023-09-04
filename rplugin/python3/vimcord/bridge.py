@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os.path
 import shlex
+import traceback
 
 from vimcord.pickle_pipe import PickleClientProtocol
 import vimcord.local_discord_server as local_discord_server
@@ -105,30 +106,44 @@ class DiscordBridge:
 
     async def add_link_extmarks(self, message_id, links):
         formatted_opengraph = await asyncio.gather(*[
-            get_link_content(link) for link in links
+            get_link_content(self, link) for link in links
         ])
         # flatten results
         # TODO: intercalate?
         formatted_opengraph = [j for i in formatted_opengraph for j in i]
 
-        self.plugin.nvim.async_call(
-            lambda x,y,z: self.plugin.nvim.lua.vimcord.add_link_extmarks(x,y,z),
-            self._buffer,
-            message_id,
-            formatted_opengraph
-        )
+        if formatted_opengraph:
+            self.plugin.nvim.async_call(
+                lambda x,y,z: self.plugin.nvim.lua.vimcord.add_link_extmarks(x,y,z),
+                self._buffer,
+                message_id,
+                formatted_opengraph
+            )
 
     # DISCORD CALLBACKS --------------------------------------------------------
     async def on_ready(self):
         self._unmuted_channels = await self.discord_pipe.wait_for("discord.unmuted_channels")
         self._user = await self.discord_pipe.wait_for("discord.user")
-
-        self.plugin.nvim.async_call(
-            lambda x,y,z: self.plugin.nvim.lua.vimcord.append_to_buffer(x,y,z),
-            self._buffer,
-            ["Got Discord servers!"],
-            {}
+        start_messages = await self.discord_pipe.wait_for(
+            "discord.connection.messages"
         )
+
+        def messages():
+            last_channel = None
+            for post in start_messages:
+                if post.channel != last_channel:
+                    last_channel = post.channel
+                    self.plugin.nvim.lua.vimcord.append_to_buffer(
+                        self._buffer,
+                        [format_channel(post.channel)],
+                        {
+                            "channel_id": post.channel.id,
+                            "server_id":  (post.server.id if post.server is not None else None),
+                        }
+                    )
+                self._on_message(post)
+
+        self.plugin.nvim.async_call(messages)
 
     async def on_message(self, post):
         self.all_messages[post.id] = post
@@ -145,18 +160,17 @@ class DiscordBridge:
                 }
             )
 
-        links, message = clean_post(self, post)
         self.plugin.nvim.async_call(
             self._on_message,
-            message.split("\n"),
             post,
-            links
         )
 
-    def _on_message(self, message, post, links):
+    def _on_message(self, post):
+        links, message = clean_post(self, post)
+
         self.plugin.nvim.lua.vimcord.append_to_buffer(
             self._buffer,
-            message,
+            message.split("\n"),
             {
                 "message_id": post.id,
                 "channel_id": post.channel.id,
@@ -165,23 +179,22 @@ class DiscordBridge:
             },
         )
         if links:
+            log.info("Calling add_link_extmarks from on_message_edit %s", links)
             self.plugin.nvim.loop.create_task(
                 self.add_link_extmarks(post.id, links)
             )
 
     async def on_message_edit(self, _, post):
-        links, message = clean_post(self, post)
         self.plugin.nvim.async_call(
             self._on_message_edit,
-            message.split("\n"),
             post,
-            links
         )
 
-    def _on_message_edit(self, message, post, links):
+    def _on_message_edit(self, post):
+        links, message = clean_post(self, post)
         self.plugin.nvim.lua.vimcord.edit_buffer_message(
             self._buffer,
-            message,
+            message.split("\n"),
             {
                 "message_id": post.id,
                 "channel_id": post.channel.id,
@@ -190,6 +203,7 @@ class DiscordBridge:
             },
         )
         if links:
+            log.info("Calling add_link_extmarks from on_message_edit %s", links)
             self.plugin.nvim.loop.create_task(
                 self.add_link_extmarks(post.id, links)
             )
@@ -205,10 +219,12 @@ class DiscordBridge:
         pass
 
     def handle_exception(self, loop, context):
+        formatted = traceback.format_exception(context["exception"])
+        log.error("Error occurred:\n%s", "".join(formatted))
+
         self.plugin.nvim.async_call(
             self.plugin.nvim.api.notify,
             "An unknown error occurred!",
             4,
             {}
         )
-        log.error("An error occurred in the loop: %s", context)

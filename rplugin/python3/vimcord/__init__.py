@@ -1,3 +1,5 @@
+import logging
+
 import pynvim
 import vimcord.discord as discord
 from vimcord.bridge import DiscordBridge
@@ -34,10 +36,7 @@ class Vimcord:
             )
             return
 
-        try:
-            return DiscordAction(self, *args).ret
-        except:
-            pass
+        return DiscordAction(self, *args).ret
 
     @pynvim.function("VimcordVisitLink")
     def visit_link(self, args):
