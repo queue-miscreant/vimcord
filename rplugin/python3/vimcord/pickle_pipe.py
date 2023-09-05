@@ -77,8 +77,8 @@ class PickleServerProtocol(asyncio.Protocol):
         lines = data.split(b"\n")
         hold = b""
         if data[-1] != ord("\n"):
-            lines = lines[:-1]
             hold = lines[-1]
+            lines = lines[:-1]
 
         for i in lines:
             try:
@@ -87,7 +87,7 @@ class PickleServerProtocol(asyncio.Protocol):
                 self._prev = b""
                 asyncio.get_event_loop().create_task(self._reply(unpickled))
             except Exception as e:
-                log.error("Error %s occurred during read!\n%s", e, traceback.format_exception(e))
+                log.error("Error %s occurred during read!\n%s", e, "".join(traceback.format_exception(e)))
 
         if hold != b"":
             self._prev = self._prev + hold
@@ -179,8 +179,8 @@ class PickleClientProtocol(asyncio.Protocol):
         lines = data.split(b"\n")
         hold = b""
         if data[-1] != ord("\n"):
-            lines = lines[:-1]
             hold = lines[-1]
+            lines = lines[:-1]
 
         for i in lines:
             try:
@@ -207,7 +207,7 @@ class PickleClientProtocol(asyncio.Protocol):
                         continue
                     waiting_future.set_result(unpickle[1])
             except Exception as e:
-                log.error("Error %s occurred during read!\n%s", e, traceback.format_exception(e))
+                log.error("Error %s occurred during read!\n%s", e, "".join(traceback.format_exception(e)))
 
         if hold != b"":
             self._prev += hold
