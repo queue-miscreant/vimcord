@@ -1,7 +1,9 @@
 if vimcord == nil then vimcord = {} end
 
 local LINKS_NAMESPACE = vim.api.nvim_create_namespace("vimcord-links")
+local REPLY_NAMESPACE = vim.api.nvim_create_namespace("vimcord-replies")
 vimcord.LINKS_NAMESPACE = LINKS_NAMESPACE
+vimcord.REPLY_NAMESPACE = REPLY_NAMESPACE
 
 function vimcord.init()
   -- open split to an empty scratch
@@ -24,7 +26,7 @@ function vimcord.init()
   return buf
 end
 
-function vimcord.append_to_buffer(buffer, discord_message, discord_extra)
+function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra)
   local window = vim.call("bufwinid", buffer)
   local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
   local split_width = tonumber(
@@ -32,7 +34,7 @@ function vimcord.append_to_buffer(buffer, discord_message, discord_extra)
   ) or 0
 
   vim.api.nvim_buf_call(buffer, function()
-    vim.call("vimcord#buffer#append", split_width, discord_message, discord_extra)
+    vim.call("vimcord#buffer#append", split_width, discord_message, reply, discord_extra)
   end)
 
   vim.api.nvim_win_call(window, function()
@@ -40,7 +42,7 @@ function vimcord.append_to_buffer(buffer, discord_message, discord_extra)
   end)
 end
 
-function vimcord.edit_buffer_message(buffer, discord_message, discord_extra)
+function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_extra)
   local window = vim.call("bufwinid", buffer)
   local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
   local split_width = tonumber(
@@ -48,7 +50,7 @@ function vimcord.edit_buffer_message(buffer, discord_message, discord_extra)
   ) or 0
 
   local added_lines = vim.api.nvim_buf_call(buffer, function()
-    return vim.call("vimcord#buffer#edit", split_width, discord_message, discord_extra)
+    return vim.call("vimcord#buffer#edit", split_width, discord_message, as_reply, discord_extra)
   end)
 
   vim.api.nvim_win_call(window, function()

@@ -63,12 +63,12 @@ Done:
 - rely on vimscript functions more
 - status bar
 - Remove `raw_message` from data sent to buffer
+- reply extmarks
+- reply @ completion
 
 Todo:
-- reply extmarks
 - sign column tricks for private messages (display user connection status?)
 - sorting buffer
-- reply @ completion
 
 - Syntax for discord markdown-like
 

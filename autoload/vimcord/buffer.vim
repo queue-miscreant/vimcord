@@ -1,5 +1,6 @@
-function vimcord#buffer#add_extra_data(discord_channels_dict, user_id)
+function vimcord#buffer#add_extra_data(discord_channels_dict, discord_members_dict, user_id)
   let b:vimcord_channel_names = a:discord_channels_dict
+  let b:vimcord_server_members = a:discord_members_dict
   let b:vimcord_discord_user_id = a:user_id
 endfunction
 
@@ -20,7 +21,7 @@ function vimcord#buffer#lines_by_message_id(message_id)
   return [start_line, end_line]
 endfunction
 
-function vimcord#buffer#append(indent_width, discord_message, discord_extra)
+function vimcord#buffer#append(indent_width, discord_message, reply, discord_extra)
   " BUFFER MODIFIABLE
   setlocal modifiable
 
@@ -36,12 +37,50 @@ function vimcord#buffer#append(indent_width, discord_message, discord_extra)
     call add(b:discord_content, a:discord_extra)
   endfor
 
+  if len(a:reply) > 0
+    call insert(a:reply, [" ╓─", "discordReply"], 0)
+    call nvim_buf_set_extmark(
+          \ 0,
+          \ luaeval("vimcord.REPLY_NAMESPACE"),
+          \ line_number,
+          \ 0,
+          \ { "virt_lines": [a:reply], "virt_lines_above": v:true }
+          \ )
+  endif
+
   setlocal nomodifiable
   " BUFFER NOT MODIFIABLE
 endfunction
 
-function vimcord#buffer#edit(indent_width, discord_message, discord_extra)
-  let [start_line, end_line] = 
+function s:redo_reply_extmarks(reply_id, new_contents)
+  call insert(a:new_contents, [" ╓─", "discordReply"], 0)
+
+  let reply_extmarks = nvim_buf_get_extmarks(
+        \ 0,
+        \ luaeval("vimcord.REPLY_NAMESPACE"),
+        \ 0,
+        \ -1,
+        \ {}
+        \ )
+
+  for [id, row, column] in reply_extmarks
+    if b:discord_content[row]["reply_message_id"] == a:reply_id
+      call nvim_buf_set_extmark(
+            \ 0,
+            \ luaeval("vimcord.REPLY_NAMESPACE"),
+            \ row,
+            \ column,
+            \ {
+            \   "id": id,
+            \   "virt_lines": [a:new_contents],
+            \   "virt_lines_above": v:true
+            \ })
+    endif
+  endfor
+endfunction
+
+function vimcord#buffer#edit(indent_width, discord_message, as_reply, discord_extra)
+  let [start_line, end_line] =
         \ vimcord#buffer#lines_by_message_id(a:discord_extra["message_id"])
   if start_line > end_line
     " Message not in buffer, fail silently
@@ -81,6 +120,7 @@ function vimcord#buffer#edit(indent_width, discord_message, discord_extra)
     call remove(b:discord_content, start_line + (old_count - new_line_count), end_line)
   endif
   " --- Done, buffer lines match hidden lines--------------
+  call s:redo_reply_extmarks(a:discord_extra["message_id"], a:as_reply)
 
   setlocal nomodifiable
   " BUFFER NOT MODIFIABLE
@@ -104,6 +144,8 @@ function vimcord#buffer#delete(message_id)
   call deletebufline(bufname(), start_line + 1, end_line + 1)
   " remove old lines
   call remove(b:discord_content, start_line, end_line)
+
+  call s:redo_reply_extmarks(a:message_id, [[" ╓─(Deleted)", "discordReply"]])
 
   setlocal nomodifiable
   " BUFFER NOT MODIFIABLE

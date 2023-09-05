@@ -7,6 +7,7 @@ syn region discordChannel start="^ ---" end="$"
 
 hi def link discordNone None
 hi def link discordChannel LineNr
+hi def link discordReply LineNr
 
 " Code shamelessly taken from AnsiEscPlugin
 function s:to_hex(color_number)
@@ -49,10 +50,9 @@ endfunction
 
 syn region discordColorDefault matchgroup=None
       \  start="\%x1B " end=" \%x1B" concealends
-syn region discordColorDefault2 matchgroup=None
+syn region discordColorDefault matchgroup=None
       \  start="\%x1B100 " end=" \%x1B" concealends
 hi def link discordColorDefault None
-hi def link discordColorDefault2 discordColorDefault
 
 " Dynamic color escapes based on (for example) post contents
 for i in range(256)

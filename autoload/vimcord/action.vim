@@ -1,3 +1,24 @@
+let s:ats = []
+function! s:complete_ats(arglead, cmdline, cursorpos)
+  let last_at = strridx(a:cmdline, "@", a:cursorpos)
+  if last_at !=# -1
+    let atrange = a:cmdline[last_at+1:a:cursorpos]
+    return map(
+          \ filter(copy(s:ats), { _, v -> stridx(v, atrange) == 0 }), 
+          \ { _, v -> a:cmdline[:last_at] . v .  a:cmdline[last_at+2:]})
+  endif
+  return []
+endfunction
+
+
+function s:echo(text, ...)
+  if a:0 >= 2
+    execute "echohl " .. a:2
+  endif
+  echo a:text
+  echohl None
+endfunction
+
 function vimcord#action#open_reply(is_reply) range
   if len(b:discord_content) <= a:firstline - 1
     echohl ErrorMsg
@@ -25,18 +46,22 @@ function vimcord#action#open_reply(is_reply) range
     endif
   endif
 
+  if message_data["server_id"] !=# v:null
+    let s:ats = b:vimcord_server_members[message_data["server_id"]]
+  endif
+
   " Wrapping this in try to ignore ctrl-c
   try
-    let content = input({
-          \ "prompt": "",
-          \ "cancelreturn": ""
-          \ })
+    let content = input("", "", "customlist," . expand("<SID>") . "complete_ats")
+    call timer_start(0, { -> s:echo("") })
     if content !=# ""
       call VimcordInvokeDiscordAction("message", message_data, content, a:is_reply)
       normal Gzb0
     endif
-  catch
+  catch /Vim:Interrupt/
   endtry
+
+  let s:ats = []
 
   if a:is_reply
     let &cursorline = prev_cursorline
@@ -64,8 +89,6 @@ function vimcord#action#delete() range
   call VimcordInvokeDiscordAction("delete", message_data)
 endfunction
 
-" TODO: split this in two: request raw_message from the plugin and place it in
-" input()
 function vimcord#action#edit_start() range
   if len(b:discord_content) <= a:firstline - 1
     echohl ErrorMsg
@@ -78,16 +101,16 @@ function vimcord#action#edit_start() range
   call VimcordInvokeDiscordAction("tryedit", message_data)
 endfunction
 
-function vimcord#action#edit_end(raw_data, message_id, channel_id)
+function vimcord#action#edit_end(raw_data, message_data)
   call timer_start(
         \ 0,
-        \ { -> s:edit_end(a:raw_data, a:message_id, a:channel_id) }
+        \ { -> s:edit_end(a:raw_data, a:message_data) }
         \ )
 endfunction
 
-function s:edit_end(raw_data, message_id, channel_id)
+function s:edit_end(raw_data, message_data)
   try
-    let b:vimcord_target_channel = b:vimcord_channel_names[a:channel_id]
+    let b:vimcord_target_channel = b:vimcord_channel_names[a:message_data["channel_id"]]
 
     if exists(":AirlineRefresh")
       AirlineRefresh!
@@ -96,15 +119,22 @@ function s:edit_end(raw_data, message_id, channel_id)
   catch
   endtry
 
+  if a:message_data["server_id"] !=# v:null
+    let s:ats = b:vimcord_server_members[a:message_data["server_id"]]
+  endif
+
   try
-    let content = input("", a:raw_data)
+    let content = input("", "", "customlist," . expand("<SID>") . "complete_ats")
+    call timer_start(0, { -> s:echo("") })
     if content ==# ""
-      call VimcordInvokeDiscordAction("delete", a:message_id)
+      call VimcordInvokeDiscordAction("delete", a:message_data["message_id"])
     else
-      call VimcordInvokeDiscordAction("edit", a:message_id, content)
+      call VimcordInvokeDiscordAction("edit", a:message_data, content)
     endif
-  catch
+  catch /Vim:Interrupt/
   endtry
+
+  let s:ats = []
 
   try
     unlet b:vimcord_target_channel
@@ -123,7 +153,15 @@ function vimcord#action#write_channel() range
   endfunction
 
   " Get the channel name by name
-  let channel_name = input("Channel: ", "", "customlist,Completer")
+  try
+    let channel_name = input("Channel: ", "", "customlist,Completer")
+  catch /Vim:Interrupt/
+    return
+  endtry
+
+  if channel_name ==# ""
+    return
+  endif
 
   " Reverse-lookup for id
   let channel_id = ""
@@ -134,7 +172,7 @@ function vimcord#action#write_channel() range
     endif
   endfor
   if channel_id ==# ""
-    echo "\nServer name not found"
+    call timer_start(0, { -> s:echo("Server name not found", "ErrorMsg") })
     return
   endif
 
@@ -149,12 +187,29 @@ function vimcord#action#write_channel() range
   catch
   endtry
 
+  " TODO
+  " let ats = []
+  " if message_data["server_id"] !=# v:null
+  "   let ats = copy(b:vimcord_server_members[message_data["server_id"]])
+  " endif
+  " function! Ats(arglead, cmdline, cursorpos) closure
+  "   let last_at = strridx(a:cmdline, "@", a:cursorpos)
+  "   if last_at !=# -1
+  "     let atrange = a:cmdline[last_at+1:a:cursorpos]
+  "     let ret = map(filter(ats, { _, v -> stridx(v, atrange) == 0 }), { _, v -> a:cmdline[:last_at-1] . v .  a:cmdline[last_at+1:]})
+  "     return ret
+  "   endif
+  "   return []
+  " endfunction
+
   try
+    " let content = input("", a:raw_data, "customlist,Ats")
     let content = input("")
+    call timer_start(0, { -> s:echo("") })
     if content !=# ""
       call VimcordInvokeDiscordAction("try_post_channel", channel_id, content)
     endif
-  catch
+  catch /Vim:Interrupt/
   endtry
 
   try

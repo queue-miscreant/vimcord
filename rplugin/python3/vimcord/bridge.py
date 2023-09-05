@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 import vimcord.local_discord_server as local_discord_server
-from vimcord.formatting import format_channel, clean_post
+from vimcord.formatting import format_channel, clean_post, extmark_post
 from vimcord.links import get_link_content, LINK_RE
 
 log = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ class DiscordBridge:
         self.visited_links = set()
 
         self._unmuted_channels = []
+        self._servers = []
         self.user = None
 
         plugin.nvim.loop.create_task(
@@ -51,7 +52,16 @@ class DiscordBridge:
 
     @property
     def unmuted_channels(self):
-        return [i for server in self._unmuted_channels for i in server[1:]]
+        return [i
+            for server in self._unmuted_channels
+            for i in server[1:]]
+
+    @property
+    def all_members(self):
+        return {server.id: [
+                member.display_name for member in server.members
+            ]
+            for server in self._servers}
 
     def get_channel_by_name(self, channel_name):
         for channel in self.unmuted_channels:
@@ -60,8 +70,6 @@ class DiscordBridge:
         return None
 
     def visit_link(self, link):
-        log.debug("Visiting link %s", repr(link))
-
         unvisited = []
         if isinstance(link, str):
             match = LINK_RE.match(link.replace("\n", "").replace("\x1b", ""))
@@ -113,6 +121,10 @@ class DiscordBridge:
             i.channel
         ) for i in start_messages])
 
+        self._servers = await self.discord_pipe.awaitable.servers()
+
+        # is_connected = not await self.discord_pipe.awaitable.is_closed()
+
         # TODO: write prepended messages all at the same time
         def on_ready_callback():
             self.plugin.nvim.api.call_function(
@@ -120,6 +132,7 @@ class DiscordBridge:
                 [
                     { i.id: format_channel(i, raw=True)
                       for i in self.unmuted_channels },
+                    self.all_members,
                     self.user.id
                 ]
             )
@@ -148,20 +161,23 @@ class DiscordBridge:
             self.plugin.nvim.lua.vimcord.append_to_buffer(
                 self._buffer,
                 [format_channel(post.channel)],
+                [],
                 {
                     "channel_id": post.channel.id,
                     "server_id":  (post.server.id if post.server is not None else None),
                 }
             )
 
-        links, message = clean_post(self, post)
+        links, reply, message = clean_post(self, post)
         self.plugin.nvim.lua.vimcord.append_to_buffer(
             self._buffer,
             message.split("\n"),
+            reply,
             {
                 "message_id": post.id,
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
+                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
             },
         )
         if links:
@@ -182,14 +198,18 @@ class DiscordBridge:
         )
 
     def _on_message_edit(self, post):
-        links, message = clean_post(self, post)
+        links, _, message = clean_post(self, post, no_reply=True)
+        as_reply = extmark_post(self, post)
         self.plugin.nvim.lua.vimcord.edit_buffer_message(
             self._buffer,
             message.split("\n"),
+            as_reply,
+            # TODO: this is immutable data. don't send it down again, because the buffer already has it
             {
                 "message_id": post.id,
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
+                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
             },
         )
         if links:

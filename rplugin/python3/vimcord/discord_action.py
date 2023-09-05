@@ -7,12 +7,11 @@ from vimcord.formatting import format_channel
 log = logging.getLogger(__name__)
 log.setLevel("DEBUG")
 
-def parse_mentions(text, channel):
+def parse_mentions(text, server):
     '''Convert all literal @s into semantic ones for discord'''
-    def replace_fn(string):
-        member = next(filter(lambda x: str(x) == string.group(1), channel.server.members), None)
-        return member.mention if member else ""
-    return re.sub("@([^#]+?#\\d{4})", replace_fn, text, 0, re.UNICODE)
+    for i in server.members:
+        text = text.replace(f"@{i.display_name}", i.mention)
+    return text
 
 class DiscordAction:
     '''Discord actions which can be invoked by the nvim client.'''
@@ -51,21 +50,19 @@ class DiscordAction:
         if channel is None:
             return
 
+        server = next(
+            filter(lambda x: x.id == message_data.get("server_id"), self.bridge._servers),
+            None
+        )
+        if server is None:
+            return
+
+        content = parse_mentions(content, server)
         self.discord.task.send_message(
             channel,
             content,
             reference=(reference if is_reply else None)
         )
-
-        # if self._channel is not None and text or self._has_file:
-        #     self.last_notified_channel = self._channel
-        #     text = self.parse_mentions(text,  self._channel)
-        #     if self._has_file:
-        #         self._has_file = False
-        #         coro = self.send_file(self._channel, "/tmp/discordfile.png", content=text, **kwargs)
-        #     else:
-        #         coro = self.send_message(self._channel, text, **kwargs)
-        #     ret = True
 
     # TODO: show deletion success/failure
     async def delete(self, message_data):
@@ -80,8 +77,6 @@ class DiscordAction:
 
         if (message := self.bridge.all_messages.get(message_id)) is None:
             return
-
-        log.debug("%s", message)
 
         self.discord.task.delete_message(message)
 
@@ -110,29 +105,48 @@ class DiscordAction:
             )
             return
 
-        log.debug("HERE")
         self.plugin.nvim.async_call(
             self.plugin.nvim.api.call_function,
             "vimcord#action#edit_end",
-             [str(message.content), message_id, channel_id]
+             [str(message.content), message_data]
          )
 
-    async def edit(self, message_id, content):
-        if (message := self.bridge.all_messages.get(message_id)) is None:
+    async def edit(self, message_data, content):
+        if (message := self.bridge.all_messages.get(message_data["message_id"])) is None:
             return
 
+        channel = await self.discord.awaitable.get_channel(message_data["channel_id"])
+        if channel is None:
+            return
+
+        server = next(
+            filter(lambda x: x.id == message_data.get("server_id"), self.bridge._servers),
+            None
+        )
+        if server is None:
+            return
+
+        content = parse_mentions(content, server)
         self.discord.task.edit_message(message, content)
 
     def get_servers(self):
         return [format_channel(channel, raw=True) for channel in self.bridge.unmuted_channels]
 
-    async def try_post_channel(self, channel_id, message):
+    async def try_post_channel(self, channel_id, content):
         channel = await self.discord.awaitable.get_channel(channel_id)
         if channel is None:
             log.debug("Could not find channel %s", channel_id)
             return
 
-        self.discord.task.send_message(channel, message)
+        server = next(
+            filter(lambda x: x.id == channel.server.id, self.bridge._servers),
+            None
+        )
+        if server is None:
+            return
+
+        content = parse_mentions(content, server)
+        self.discord.task.send_message(channel, content)
 
     async def try_reconnect(self):
         self.discord.task.connect()

@@ -1,5 +1,12 @@
+import logging
+
 import vimcord.discord as discord
 from vimcord.links import LINK_RE
+
+log = logging.getLogger(__name__)
+log.setLevel("DEBUG")
+
+MAX_REPLY_WIDTH = 100
 
 def syntax_color(color, text, literal=False):
     '''This is how the syntax plugin expects colors'''
@@ -19,7 +26,7 @@ def color_visited_link(bridge, match):
         color = "VL"
     return syntax_color(color, link, literal=True)
 
-def clean_post(bridge, post: discord.Message):
+def clean_post(bridge, post: discord.Message, no_reply=False):
     embeds = [i["url"] for i in post.attachments]
     links = LINK_RE.findall(post.clean_content) + embeds
     #pre-visit all links made by me
@@ -35,12 +42,36 @@ def clean_post(bridge, post: discord.Message):
 
     author = post.author.display_name
     if hasattr(post.author, "color"):
-        author = syntax_color(str(post.author.color), post.author.display_name)
-    if isinstance(post.author, discord.Member):
-        # author = "⬤ " + author, str(post.author.color))
-        pass
+        author = syntax_color(str(post.author.color), author)
 
-    return links, author + ": " + content
+    reply = []
+    if not no_reply and post.referenced_message is not None:
+        reply = extmark_post(bridge, post.referenced_message)
+
+    return links, reply, author + ": " + content
+
+def extmark_post(bridge, post: discord.Message):
+    embeds = [i["url"] for i in post.attachments]
+    content = post.clean_content + ' ' + ' '.join(embeds)
+    color_number = "Default"
+    if hasattr(post.author, "color"):
+        color_number = two56(str(post.author.color))
+
+    lines = content.split("\n")
+    ellipsize = False
+    if len(lines) > 1:
+        content = lines[0]
+        ellipsize = True
+    if len(content) > 80:
+        content = content[:MAX_REPLY_WIDTH]
+        ellipsize = True
+    if ellipsize:
+        content = content[:-1] + "…"
+
+    return [
+        [post.author.display_name, f"discordColor{color_number}"],
+        [f": {content}", "discordReply"]
+    ]
 
 def format_channel(channel, width=80, raw=False):
     '''Consistent way to format channels'''

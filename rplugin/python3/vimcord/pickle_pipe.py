@@ -19,14 +19,14 @@ class PicklePipeException(Exception):
     '''Exception object passed when pickling errors occur'''
 
 def decode_for_pipe(data):
-    unb64 = base64.b64decode(data)
-    dilute = gzip.decompress(unb64)
+    unb85 = base64.b85decode(data)
+    dilute = gzip.decompress(unb85)
     return pickle.loads(dilute)
 
 def encode_for_pipe(obj):
     pickled = pickle.dumps(obj)
     concentrate = gzip.compress(pickled)
-    return base64.b64encode(concentrate) + b"\n"
+    return base64.b85encode(concentrate) + b"\n"
 
 def convert_return(obj):
     '''
@@ -65,6 +65,8 @@ class PickleServerProtocol(asyncio.Protocol):
         self.transport = None
         self.reference_object = obj
 
+        self._prev = b""
+
     def connection_made(self, transport):
         '''Process communication initiated. Save transport and send connected event.'''
         self.transport = transport
@@ -72,13 +74,23 @@ class PickleServerProtocol(asyncio.Protocol):
 
     def data_received(self, data):
         '''Reply to data request with pickle'''
-        for i in data.split(b"\n"):
+        lines = data.split(b"\n")
+        hold = b""
+        if data[-1] != ord("\n"):
+            lines = lines[:-1]
+            hold = lines[-1]
+
+        for i in lines:
             try:
                 if not i.rstrip(): return
-                unpickled = decode_for_pipe(i)
+                unpickled = decode_for_pipe(self._prev + i)
+                self._prev = b""
                 asyncio.get_event_loop().create_task(self._reply(unpickled))
             except Exception as e:
                 log.error("Error %s occurred during read!\n%s", e, traceback.format_exception(e))
+
+        if hold != b"":
+            self._prev = self._prev + hold
 
     def connection_lost(self, exc):
         '''Process communication closed. Call close event.'''
@@ -148,6 +160,8 @@ class PickleClientProtocol(asyncio.Protocol):
     '''
     def __init__(self):
         self.transport = None
+        self._prev = b""
+
         self._events = {}
 
         self._waiting_property = {}
@@ -162,11 +176,17 @@ class PickleClientProtocol(asyncio.Protocol):
         Split out received data into individual pickles.
         Respond to events and waiting data.
         '''
-        #TODO: investigate better serialization
-        for i in data.split(b"\n"):
+        lines = data.split(b"\n")
+        hold = b""
+        if data[-1] != ord("\n"):
+            lines = lines[:-1]
+            hold = lines[-1]
+
+        for i in lines:
             try:
                 if not i.rstrip(): continue
-                unpickle = decode_for_pipe(i)
+                unpickle = decode_for_pipe(self._prev + i)
+                self._prev = b""
                 # got bad data
                 if not isinstance(unpickle, list) or len(unpickle) < 2:
                     self._call_event("PROTOCOL_UNKNOWN_DATA", unpickle)
@@ -188,6 +208,9 @@ class PickleClientProtocol(asyncio.Protocol):
                     waiting_future.set_result(unpickle[1])
             except Exception as e:
                 log.error("Error %s occurred during read!\n%s", e, traceback.format_exception(e))
+
+        if hold != b"":
+            self._prev += hold
 
     def connection_lost(self, exc):
         '''Process communication closed. Call close event.'''
