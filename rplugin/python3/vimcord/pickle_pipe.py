@@ -112,8 +112,13 @@ class PickleServerProtocol(asyncio.Protocol):
         # getattrs until we're at the method we want
         base = self.reference_object
         path = verb.split(".")[1:]
-        for fragment in path:
-            base = getattr(base, fragment)
+        try:
+            for fragment in path:
+                base = getattr(base, fragment)
+        except AttributeError:
+            log.error("Received path for invalid path: %s", verb)
+            self.write([request_id], [PicklePipeException(f"Invalid path: {verb}!")])
+            return
 
         if request_id == -1:
             if asyncio.iscoroutinefunction(base):

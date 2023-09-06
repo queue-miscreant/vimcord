@@ -97,7 +97,7 @@ function vimcord#buffer#edit(indent_width, discord_message, as_reply, discord_ex
 
   " then set the rest of the line to the new contents
   let new_line_count = len(a:discord_message)
-  let new_lines = map(a:discord_message, { k, v -> 
+  let new_lines = map(a:discord_message, { k, v ->
         \ (repeat(" ", 1 + (k == 0 ? 0 : a:indent_width))) . v
         \ })
   call setline(start_line + 1, new_lines)
@@ -180,7 +180,7 @@ function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
         \ )
   call nvim_buf_set_extmark(a:buffer,
         \ luaeval("vimcord.LINKS_NAMESPACE"),
-        \ end_line, 
+        \ end_line,
         \ 0,
         \ { "virt_lines": virt_lines }
         \ )
@@ -188,4 +188,34 @@ function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
   if line(".") == line("$")
     normal zb
   end
+endfunction
+
+function vimcord#buffer#goto_reference() range
+  if len(b:discord_content) <= a:firstline - 1
+    echohl ErrorMsg
+    echo "No message under cursor"
+    echohl None
+    return
+  endif
+
+  let message_data = b:discord_content[a:firstline - 1]
+  try
+    let reply_id = message_data[reply_message_id]
+  catch
+    echohl ErrorMsg
+    echo "Message has no reply"
+    echohl None
+    return
+  endtry
+
+  let [start_line, end_line] = vimcord#buffer#lines_by_message_id(reply_id)
+  if end_line == -1
+    " TODO: try to prepend reference contents
+    echohl ErrorMsg
+    echo "Replied message not in buffer!"
+    echohl None
+    return
+  endif
+
+  call cursor(start_line + 1, 0)
 endfunction

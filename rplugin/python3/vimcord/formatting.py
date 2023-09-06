@@ -30,7 +30,7 @@ def clean_post(bridge, post: discord.Message, no_reply=False):
     embeds = [i["url"] for i in post.attachments]
     links = LINK_RE.findall(post.clean_content) + embeds
     #pre-visit all links made by me
-    if post.author == bridge.user:
+    if post.author == bridge._user:
         bridge.visited_links.union(links)
 
     # clean up post content
@@ -79,14 +79,14 @@ def format_channel(channel, width=80, raw=False):
     if isinstance(channel, discord.PrivateChannel):
         if raw:
             return str(channel)
-        channel_name = ellipsize(str(channel), width - 3)
-        return f"---{channel_name}".ljust(width - 1, "-")
+        channel_name = ellipsize(str(channel), width - 5)
+        return f"--- {channel_name} ".ljust(width - 1, "-")
     # want both server and channel names
     server_name = ellipsize(str(channel.server), width // 2)
-    channel_name = ellipsize(str(channel), width // 2 - 3)
+    channel_name = ellipsize(str(channel), width // 2 - 5)
     if raw:
         return f"{server_name}#{channel_name}"
-    return f"---{server_name}#{channel_name}".ljust(width - 1, "-")
+    return f"--- {server_name}#{channel_name} ".ljust(width - 1, "-")
 
 # 256-color helper----------------------------------------------------------------------------------
 

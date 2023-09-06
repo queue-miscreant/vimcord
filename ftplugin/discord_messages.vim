@@ -45,3 +45,5 @@ nmap <silent><buffer> gx :<c-u>call vimcord#link#open_under_cursor()<cr>
 nmap <silent><buffer> <c-g> :<c-u>call vimcord#link#open_most_recent()<cr>
 
 nmap <silent><buffer> A :<c-u>call vimcord#action#write_channel()<cr>
+
+nmap <silent><buffer> <enter> :<c-u>.call vimcord#buffer#goto_reference()<cr>

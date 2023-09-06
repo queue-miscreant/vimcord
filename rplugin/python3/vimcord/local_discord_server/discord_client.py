@@ -8,12 +8,6 @@ import vimcord.discord as discord
 log = logging.getLogger(__name__)
 log.setLevel("DEBUG")
 
-def is_current(timestr):
-    '''Retrieves whether the date encoded by the time string is in the future'''
-    if isinstance(timestr, int) and timestr < 0 or timestr is None:
-        return True
-    return time.mktime(time.strptime(timestr.split(".")[0], "%Y-%m-%dT%H:%M:%S")) > time.time()
-
 class VimcordClient(discord.Client):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -43,7 +37,7 @@ class VimcordClient(discord.Client):
                 json={}
             )
             if settings is None:
-                break
+                settings = {"muted": False}
 
             settings["channel_overrides"] = {channel["channel_id"]: channel \
                 for channel in settings.get("channel_overrides", [])}
@@ -72,54 +66,3 @@ class VimcordClient(discord.Client):
             self._dm_ordering[channel["id"]] = channel["last_message_id"]
         self._really_connected = True
         self.dispatch("really_ready")
-
-    def is_muted(self, server, channel):
-        '''Check if a channel is muted, per its settings'''
-        if server is None:
-            return False
-        try:
-            settings = self._notify[server.id]
-            if "channel_overrides" not in settings \
-            or channel.id not in settings["channel_overrides"]:
-                # this server has no channel overrides, or there are none for this channel
-                return settings["muted"] and (
-                    settings["mute_config"] is None or
-                    is_current(settings["mute_config"]["end_time"])
-                )
-
-            # defer to channel overrides
-            local_settings = settings["channel_overrides"][channel.id]
-            return local_settings["muted"] and (
-                local_settings["mute_config"] is None or
-                is_current(local_settings["mute_config"]["end_time"])
-            )
-        except KeyError:
-            return True
-
-    def unmuted_channels(self):
-        '''Get a list of channels (and private messages) which are unmuted'''
-        ret = [["Private Messages", *sorted(
-            self.private_channels,
-            key=lambda x: self._dm_ordering.get(x.id, "") or "",
-            reverse=True
-        )]]
-        for server in self.servers:
-            me_in_server = server.get_member(self.user.id)
-            if me_in_server is None:
-                continue
-            server_channels = [server.name]
-            # settings = self._notify[server.id] \
-            #     if server.id in self._notify else {"muted": False}
-            for channel in server.channels:
-                visible = channel.permissions_for(me_in_server).read_messages \
-                    if channel.server.owner is not None else False
-                try:
-                    if channel.type != discord.ChannelType.text \
-                    or not visible \
-                    or self.is_muted(server, channel):
-                        continue
-                except KeyError:
-                    pass
-                server_channels.append(channel)
-            ret.append(server_channels)
-        return ret

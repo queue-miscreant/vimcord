@@ -1,6 +1,6 @@
 import asyncio
-import re
 import logging
+import re
 
 from vimcord.formatting import format_channel
 
@@ -14,7 +14,7 @@ def parse_mentions(text, server):
     return text
 
 class DiscordAction:
-    '''Discord actions which can be invoked by the nvim client.'''
+    '''Discord actions which can be invoked by the nvim client'''
     def __init__(self, plugin, action_name, *args):
         self.plugin = plugin
         self.bridge = plugin.bridge
@@ -51,11 +51,13 @@ class DiscordAction:
             return
 
         server = next(
-            filter(lambda x: x.id == message_data.get("server_id"), self.bridge._servers),
+            filter(lambda x: x.id == message_data.server.id, self.bridge._servers),
             None
-        )
+        ) if getattr(channel, "server", None) is not None else "DM"
         if server is None:
             return
+        if server == "DM":
+            server = None
 
         content = parse_mentions(content, server)
         self.discord.task.send_message(
@@ -96,7 +98,7 @@ class DiscordAction:
             )
             return
 
-        if self.bridge.user.id != message.author.id:
+        if self.bridge._user.id != message.author.id:
             self.plugin.nvim.async_call(
                 self.plugin.nvim.api.notify,
                 "Cannot edit: not the author of this message",
@@ -120,30 +122,34 @@ class DiscordAction:
             return
 
         server = next(
-            filter(lambda x: x.id == message_data.get("server_id"), self.bridge._servers),
+            filter(lambda x: x.id == message_data.server.id, self.bridge._servers),
             None
-        )
+        ) if getattr(channel, "server", None) is not None else "DM"
         if server is None:
             return
+        if server == "DM":
+            server = None
 
         content = parse_mentions(content, server)
         self.discord.task.edit_message(message, content)
 
     def get_servers(self):
-        return [format_channel(channel, raw=True) for channel in self.bridge.unmuted_channels]
+        return [format_channel(channel, raw=True) for channel in self.bridge.unmuted_channels()]
 
-    async def try_post_channel(self, channel_id, content):
-        channel = await self.discord.awaitable.get_channel(channel_id)
+    async def try_post_channel(self, message_data, content):
+        channel = await self.discord.awaitable.get_channel(message_data["channel_id"])
         if channel is None:
-            log.debug("Could not find channel %s", channel_id)
+            log.debug("Could not find channel %s", message_data["channel_id"])
             return
 
         server = next(
-            filter(lambda x: x.id == channel.server.id, self.bridge._servers),
+            filter(lambda x: x.id == message_data.server.id, self.bridge._servers),
             None
-        )
+        ) if getattr(channel, "server", None) is not None else "DM"
         if server is None:
             return
+        if server == "DM":
+            server = None
 
         content = parse_mentions(content, server)
         self.discord.task.send_message(channel, content)

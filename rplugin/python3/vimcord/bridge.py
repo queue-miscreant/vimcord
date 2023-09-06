@@ -1,12 +1,20 @@
 import asyncio
 import logging
+import time
 
+import vimcord.discord as discord
 import vimcord.local_discord_server as local_discord_server
 from vimcord.formatting import format_channel, clean_post, extmark_post
 from vimcord.links import get_link_content, LINK_RE
 
 log = logging.getLogger(__name__)
-log.setLevel("DEBUG")
+log.setLevel("INFO")
+
+def is_current(timestr):
+    '''Retrieves whether the date encoded by the time string is in the future'''
+    if isinstance(timestr, int) and timestr < 0 or timestr is None:
+        return True
+    return time.mktime(time.strptime(timestr.split(".")[0], "%Y-%m-%dT%H:%M:%S")) > time.time()
 
 class DiscordBridge:
     '''
@@ -22,26 +30,28 @@ class DiscordBridge:
         self.all_messages = {}
         self.visited_links = set()
 
-        self._unmuted_channels = []
+        # server properties that need refreshed rarely, but get used for unmuted channels/is muted
+        self._user = None
+        self._dm_ordering = {}
+        self._notify = {}
         self._servers = []
-        self.user = None
+        self._private_channels = []
 
         plugin.nvim.loop.create_task(
             self.start_discord_client_server(plugin.socket_path)
         )
 
+    async def get_remote_attributes(self):
+        '''Refresh rarely-updated members from the daemon'''
+        self._user = await self.discord_pipe.awaitable.user()
+        self._dm_ordering = await self.discord_pipe.awaitable._dm_ordering()
+        self._notify = await self.discord_pipe.awaitable._notify()
+        self._servers = await self.discord_pipe.awaitable.servers()
+        self._private_channels = await self.discord_pipe.awaitable.private_channels()
+
     async def start_discord_client_server(self, path):
         '''Spawn a local discord server as a daemon and set the discord pipe object'''
-        daemon_created, self.discord_pipe = \
-                await local_discord_server.connect_to_daemon(path, log)
-
-        if daemon_created:
-            self.discord_pipe.task.start(
-                self.plugin.discord_username,
-                self.plugin.discord_password
-            )
-        else:
-            asyncio.create_task(self.on_ready())
+        _, self.discord_pipe = await local_discord_server.connect_to_daemon(path, log)
 
         # bind events
         self.discord_pipe.event("servers_ready", self.on_ready)
@@ -50,11 +60,27 @@ class DiscordBridge:
         self.discord_pipe.event("message_delete", self.on_message_delete)
         self.discord_pipe.event("dm_update", self.on_dm_update)
 
-    @property
-    def unmuted_channels(self):
-        return [i
-            for server in self._unmuted_channels
-            for i in server[1:]]
+        await self.preamble()
+
+    async def preamble(self):
+        '''
+        When connecting to the daemon, check if the user is logged in and
+        whether a connection has been established.
+        '''
+        is_logged_in = await self.discord_pipe.awaitable.is_logged_in()
+        if not is_logged_in:
+            log.info("Not logged in! Attempting to login and start discord connection...")
+            self.discord_pipe.task.start(
+                self.plugin.discord_username,
+                self.plugin.discord_password
+            )
+        else:
+            is_not_connected = await self.discord_pipe.awaitable.is_closed()
+            if is_not_connected:
+                log.info("Not connected to discord! Attempting to reconnect...")
+                self.discord_pipe.task.connect()
+            else:
+                self.plugin.nvim.loop.create_task(self.on_ready())
 
     @property
     def all_members(self):
@@ -70,6 +96,7 @@ class DiscordBridge:
         return None
 
     def visit_link(self, link):
+        '''Add a link to the set of visited links and issue a recolor to the buffer'''
         unvisited = []
         if isinstance(link, str):
             match = LINK_RE.match(link.replace("\n", "").replace("\x1b", ""))
@@ -93,6 +120,10 @@ class DiscordBridge:
             )
 
     async def add_link_extmarks(self, message_id, links):
+        '''
+        Asynchronously generate extmarks to a list of links, then call vim
+        function to add them.
+        '''
         formatted_opengraph = await asyncio.gather(*[
             get_link_content(link) for link in links
         ])
@@ -113,40 +144,37 @@ class DiscordBridge:
 
     # DISCORD CALLBACKS --------------------------------------------------------
     async def on_ready(self):
-        self._unmuted_channels = await self.discord_pipe.awaitable.unmuted_channels()
-        self.user = await self.discord_pipe.awaitable.user()
+        '''Ready callback. Get messages from daemon and add them to the buffer'''
+        await self.get_remote_attributes()
+        log.info("Retrieving messages from daemon")
         start_messages = await self.discord_pipe.awaitable.connection.messages()
-        muted = await asyncio.gather(*[self.discord_pipe.awaitable.is_muted(
-            getattr(i, "server", None),
-            i.channel
-        ) for i in start_messages])
-
-        self._servers = await self.discord_pipe.awaitable.servers()
-
-        # is_connected = not await self.discord_pipe.awaitable.is_closed()
+        unmuted_messages = [message
+            for message in start_messages
+            if not self.is_muted(
+                getattr(message, "server", None),
+                message.channel
+            )]
 
         # TODO: write prepended messages all at the same time
         def on_ready_callback():
+            log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
                 "vimcord#buffer#add_extra_data",
                 [
                     { i.id: format_channel(i, raw=True)
                       for i in self.unmuted_channels },
                     self.all_members,
-                    self.user.id
+                    self._user.id
                 ]
             )
-            for post, is_muted in zip(start_messages, muted):
-                if not is_muted:
-                    self._on_message(post)
+            for message in unmuted_messages:
+                self._on_message(message)
 
         self.plugin.nvim.async_call(on_ready_callback)
 
     async def on_message(self, post):
-        muted = await self.discord_pipe.awaitable.is_muted(
-            getattr(post, "server", None),
-            post.channel
-        )
+        '''Add message to the buffer if it has not been muted'''
+        muted = self.is_muted(getattr(post, "server", None), post.channel)
         if muted:
             return
         self.plugin.nvim.async_call(
@@ -155,6 +183,7 @@ class DiscordBridge:
         )
 
     def _on_message(self, post):
+        '''On message callback, when vim is available'''
         self.all_messages[post.id] = post
         if self._last_channel != post.channel:
             self._last_channel = post.channel
@@ -186,10 +215,8 @@ class DiscordBridge:
             )
 
     async def on_message_edit(self, _, post):
-        muted = await self.discord_pipe.awaitable.is_muted(
-            getattr(post, "server", None),
-            post.channel
-        )
+        '''If a message was edited, update the buffer'''
+        muted = self.is_muted(getattr(post, "server", None), post.channel)
         if muted:
             return
         self.plugin.nvim.async_call(
@@ -198,6 +225,7 @@ class DiscordBridge:
         )
 
     def _on_message_edit(self, post):
+        '''On message edit callback, when vim is available'''
         links, _, message = clean_post(self, post, no_reply=True)
         as_reply = extmark_post(self, post)
         self.plugin.nvim.lua.vimcord.edit_buffer_message(
@@ -218,10 +246,8 @@ class DiscordBridge:
             )
 
     async def on_message_delete(self, post):
-        muted = await self.discord_pipe.awaitable.is_muted(
-            getattr(post, "server", None),
-            post.channel
-        )
+        '''If a message was deleted, update the buffer'''
+        muted = self.is_muted(getattr(post, "server", None), post.channel)
         if muted:
             return
         self.plugin.nvim.async_call(
@@ -231,4 +257,59 @@ class DiscordBridge:
         )
 
     async def on_dm_update(self, dm):
-        pass
+        '''DM discord user status change'''
+        #TODO
+
+    #---Check if a channel is muted---------------------------------------------
+    def is_muted(self, server, channel):
+        '''Check if a channel is muted, per its settings'''
+        if server is None:
+            return False
+        try:
+            settings = self._notify[server.id]
+            if "channel_overrides" not in settings \
+            or channel.id not in settings["channel_overrides"]:
+                # this server has no channel overrides, or there are none for this channel
+                return settings.get("muted") and (
+                    settings.get("mute_config") is None or
+                    is_current(settings["mute_config"]["end_time"])
+                )
+
+            # defer to channel overrides
+            local_settings = settings["channel_overrides"][channel.id]
+            return local_settings["muted"] and (
+                local_settings["mute_config"] is None or
+                is_current(local_settings["mute_config"]["end_time"])
+            )
+        except KeyError:
+            return True
+
+    def _unmuted_channels(self):
+        '''Get a list of channels (and private messages) which are unmuted'''
+        ret = [[*sorted(
+            self._private_channels,
+            key=lambda x: self._dm_ordering.get(x.id, "") or "",
+            reverse=True
+        )]]
+        for server in self._servers:
+            me_in_server = server.get_member(self._user.id)
+            if me_in_server is None:
+                continue
+            server_channels = [] # [server.name]
+            for channel in server.channels:
+                visible = channel.permissions_for(me_in_server).read_messages \
+                    if channel.server.owner is not None else False
+                try:
+                    if channel.type != discord.ChannelType.text \
+                    or not visible \
+                    or self.is_muted(server, channel):
+                        continue
+                except KeyError:
+                    pass
+                server_channels.append(channel)
+            ret.append(server_channels)
+        return ret
+
+    @property
+    def unmuted_channels(self):
+        return [channel for server in self._unmuted_channels() for channel in server]
