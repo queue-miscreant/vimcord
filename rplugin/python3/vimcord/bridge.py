@@ -167,8 +167,16 @@ class DiscordBridge:
                     self._user.id
                 ]
             )
-            for message in unmuted_messages:
-                self._on_message(message)
+            messages = [
+                {
+                    "contents": contents,
+                    "reply": reply_extmark,
+                    "extra": extra
+                }
+                for message in unmuted_messages
+                for contents, reply_extmark, extra in self._on_message_no_append(message)
+            ]
+            self.plugin.nvim.lua.vimcord.append_many_to_buffer(self._buffer, messages)
 
         self.plugin.nvim.async_call(on_ready_callback)
 
@@ -181,6 +189,36 @@ class DiscordBridge:
             self._on_message,
             post,
         )
+
+    def _on_message_no_append(self, post):
+        '''On message callback, when vim is available'''
+        ret = []
+        if self._last_channel != post.channel:
+            self._last_channel = post.channel
+            ret.append((
+                [format_channel(post.channel)],
+                [],
+                {
+                    "channel_id": post.channel.id,
+                    "server_id":  (post.server.id if post.server is not None else None),
+                }
+            ))
+
+        _, reply, message = clean_post(self, post)
+        if message.split("\n") == []:
+            log.debug("DETECTED BAD MESSAGE CONTENTS: %s in channel %s", repr(post.content), str(post.channel))
+
+        ret.append((
+            message.split("\n") or [""],
+            reply,
+            {
+                "message_id": post.id,
+                "channel_id": post.channel.id,
+                "server_id":  (post.server.id if post.server is not None else None),
+                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
+            },
+        ))
+        return ret
 
     def _on_message(self, post):
         '''On message callback, when vim is available'''

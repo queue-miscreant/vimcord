@@ -62,6 +62,29 @@ function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra)
   end)
 end
 
+function vimcord.append_many_to_buffer(buffer, discord_messages)
+  local window = vim.call("bufwinid", buffer)
+  local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
+  local split_width = tonumber(
+    vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]
+  ) or 0
+
+  local line_count = -1
+  vim.api.nvim_buf_call(buffer, function()
+    for _, message in pairs(discord_messages) do
+      local contents = message["contents"]
+      local reply = message["reply"] or {}
+      local discord_extra = message["extra"]
+      vim.call("vimcord#buffer#append", split_width, contents, reply, discord_extra)
+      line_count = line_count + #contents
+    end
+  end)
+
+  vim.api.nvim_win_call(window, function()
+    vim.call("vimcord#scroll_cursor", line_count)
+  end)
+end
+
 function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_extra)
   local window = vim.call("bufwinid", buffer)
   local bufindentopt = vim.api.nvim_win_get_option(window, "breakindentopt")
