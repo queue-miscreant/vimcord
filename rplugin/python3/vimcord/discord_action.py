@@ -158,3 +158,80 @@ class DiscordAction:
 
     async def try_reconnect(self):
         self.discord.task.connect()
+
+    async def new_reply(self, message_data, content):
+        log.debug("%s %s", message_data, content)
+
+        message_id = message_data.get("message_id")
+        channel_id = message_data.get("channel_id")
+        is_reply = message_data.get("is_reply", False)
+
+        reference = {
+            "channel_id": channel_id,
+            "message_id": message_id,
+        }
+
+        channel = await self.discord.awaitable.get_channel(channel_id)
+        if channel is None:
+            return
+
+        server = next(
+            filter(lambda x: x.id == message_data["server_id"], self.bridge._servers),
+            None
+        ) if getattr(channel, "server", None) is not None else "DM"
+        if server is None:
+            return
+        if server == "DM":
+            server = None
+
+        content = parse_mentions(content, server)
+        self.discord.task.send_message(
+            channel,
+            content,
+            reference=(reference if is_reply else None)
+        )
+
+    async def new_edit(self, message_data, content):
+        log.debug("%s %s", message_data, content)
+
+        if (message := self.bridge.all_messages.get(message_data["message_id"])) is None:
+            return
+
+        if content.strip() == "":
+            self.discord.task.delete_message(message)
+            return
+
+        channel = await self.discord.awaitable.get_channel(message_data["channel_id"])
+        if channel is None:
+            return
+
+        server = next(
+            filter(lambda x: x.id == message_data["server_id"], self.bridge._servers),
+            None
+        ) if getattr(channel, "server", None) is not None else "DM"
+        if server is None:
+            return
+        if server == "DM":
+            server = None
+
+        content = parse_mentions(content, server)
+        self.discord.task.edit_message(message, content)
+
+    async def new_try_post_channel(self, message_data, content):
+        channel = await self.discord.awaitable.get_channel(message_data["channel_id"])
+        if channel is None:
+            log.debug("Could not find channel %s", message_data["channel_id"])
+            return
+
+        server = next(
+            filter(lambda x: x.id == channel.server.id, self.bridge._servers),
+            None
+        ) if getattr(channel, "server", None) is not None else "DM"
+        if server is None:
+            return
+        if server == "DM":
+            server = None
+
+        content = parse_mentions(content, server)
+        self.discord.task.send_message(channel, content)
+

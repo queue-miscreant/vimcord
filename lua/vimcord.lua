@@ -5,23 +5,43 @@ local REPLY_NAMESPACE = vim.api.nvim_create_namespace("vimcord-replies")
 vimcord.LINKS_NAMESPACE = LINKS_NAMESPACE
 vimcord.REPLY_NAMESPACE = REPLY_NAMESPACE
 
-function vimcord.init()
-  -- open split to an empty scratch
-  local current_buffer = vim.call("getbufinfo", vim.call("bufnr"))[1]
-  local win, buf
-  if current_buffer.linecount == 1 and current_buffer.changed == 0 and vim.call("getline", 1) == "" then
-    win = vim.api.nvim_get_current_win()
+function vimcord.create_window(no_init)
+  -- get a new buffer
+  local buf = vim.api.nvim_create_buf(true, true)
+  local win
+  if not no_init then
+    local current_buffer = vim.call("getbufinfo", vim.call("bufnr"))[1]
+    if current_buffer.linecount == 1 and current_buffer.changed == 0 and vim.call("getline", 1) == "" then
+      win = vim.api.nvim_get_current_win()
+    else
+      vim.cmd("split")
+      win = vim.api.nvim_get_current_win()
+    end
+    vim.api.nvim_set_option("laststatus", 0)
   else
-    vim.cmd("split")
+    vim.cmd("tabnew")
     win = vim.api.nvim_get_current_win()
   end
-  buf = vim.api.nvim_create_buf(true, true)
   vim.api.nvim_win_set_buf(win, buf)
+
+  local reply_buf = vim.api.nvim_create_buf(true, true)
+  vim.cmd("below sb " .. tostring(buf))
+  vim.cmd("resize 2")
+  local reply_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(reply_win, reply_buf)
 
   -- set options for new buffer/window
   vim.api.nvim_buf_set_var(buf, "discord_content", {})
+  vim.api.nvim_buf_set_var(buf, "vimcord_reply_buffer", reply_buf)
   vim.api.nvim_buf_set_option(buf, "modifiable", false)
   vim.api.nvim_buf_set_option(buf, "filetype", "discord_messages")
+
+  -- ditto for the reply window
+  vim.api.nvim_buf_set_var(reply_buf, "vimcord_target_buffer", buf)
+  vim.api.nvim_buf_set_option(reply_buf, "filetype", "discord_reply")
+
+  -- return to the buffer above
+  vim.cmd("wincmd k")
 
   return buf
 end

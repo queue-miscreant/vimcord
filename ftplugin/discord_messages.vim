@@ -28,15 +28,20 @@ augroup discord_messages
   autocmd TextYankPost <buffer> call s:strip_colors(v:event)
 augroup end
 
-if !exists("b:discord_content")
+if !(exists("b:discord_content") && exists("b:vimcord_reply_buffer"))
   finish
 endif
 
-nmap <silent><buffer> i :<c-u>.call vimcord#action#open_reply(0)<cr>
-nmap <silent><buffer> I :<c-u>.call vimcord#action#open_reply(1)<cr>
+" nmap <silent><buffer> i :<c-u>.call vimcord#action#open_reply(0)<cr>
+" nmap <silent><buffer> I :<c-u>.call vimcord#action#open_reply(1)<cr>
+
+nmap <silent><buffer> i :<c-u>.call vimcord#action#new_open_reply(0)<cr>
+nmap <silent><buffer> I :<c-u>.call vimcord#action#new_open_reply(1)<cr>
 
 nmap <silent><buffer> X :<c-u>.call vimcord#action#delete()<cr>
 nmap <silent><buffer> D :<c-u>.call vimcord#action#delete()<cr>
+
+nmap <silent><buffer> A :<c-u>call vimcord#action#new_write_channel()<cr>
 
 nmap <silent><buffer> r :<c-u>.call vimcord#action#edit_start()<cr>
 nmap <silent><buffer> R :<c-u>.call vimcord#action#edit_start()<cr>
@@ -44,6 +49,19 @@ nmap <silent><buffer> R :<c-u>.call vimcord#action#edit_start()<cr>
 nmap <silent><buffer> gx :<c-u>call vimcord#link#open_under_cursor()<cr>
 nmap <silent><buffer> <c-g> :<c-u>call vimcord#link#open_most_recent()<cr>
 
-nmap <silent><buffer> A :<c-u>call vimcord#action#write_channel()<cr>
-
 nmap <silent><buffer> <enter> :<c-u>.call vimcord#buffer#goto_reference()<cr>
+
+" Close both the reply window and the main window
+function s:close_reply_window()
+  if winnr("$") == 2
+    quitall
+  endif
+
+  let buf = b:vimcord_reply_buffer
+  let win = bufwinnr(buf)
+  exe win .. "wincmd q"
+endfunction
+
+autocmd WinClosed <buffer> call s:close_reply_window()
+
+" TODO: autocmd for tab entered to restore laststatus

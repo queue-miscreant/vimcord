@@ -6,11 +6,16 @@ endfunction
 
 " Return the first line and last lines that match the message id given
 " Lines returned are 0-indexed!
-function vimcord#buffer#lines_by_message_id(message_id)
+function vimcord#buffer#lines_by_message_id(message_id, ...)
+  let buf = 0
+  if a:0 >= 1
+    let buf = a:1
+  endif
+
   let start_line = 1/0
   let end_line = -1
   let i = 0
-  for data in b:discord_content
+  for data in nvim_buf_get_var(buf, "discord_content")
     if exists("data.message_id") && data["message_id"] == a:message_id
       let start_line = min([start_line, i])
       let end_line = max([end_line, i])
@@ -29,7 +34,7 @@ function vimcord#buffer#append(indent_width, discord_message, reply, discord_ext
   let new_line_count = len(a:discord_message)
 
   let new_lines = map(a:discord_message, { k, v ->
-        \ (repeat(" ", 1 + (k == 0 ? 0 : a:indent_width))) . v
+        \ (repeat(" ", k == 0 ? 1 : a:indent_width)) . v
         \ })
 
   call setline(line_number + 1, new_lines)
@@ -98,7 +103,7 @@ function vimcord#buffer#edit(indent_width, discord_message, as_reply, discord_ex
   " then set the rest of the line to the new contents
   let new_line_count = len(a:discord_message)
   let new_lines = map(a:discord_message, { k, v ->
-        \ (repeat(" ", 1 + (k == 0 ? 0 : a:indent_width))) . v
+        \ (repeat(" ", k == 0 ? 1 : a:indent_width)) . v
         \ })
   call setline(start_line + 1, new_lines)
 
@@ -152,11 +157,12 @@ function vimcord#buffer#delete(message_id)
 endfunction
 
 function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
-  let [start_line, end_line] = vimcord#buffer#lines_by_message_id(a:message_id)
+  let [start_line, end_line] = vimcord#buffer#lines_by_message_id(a:message_id, a:buffer)
+  let window = bufwinid(a:buffer)
 
-  if end_line + 1 > line("$")
+  if end_line + 1 > line("$", window)
     echohl ErrorMsg
-    echom "Could not add links to message id " .. message_id .. "!"
+    echom "Could not add links to message id " .. a:message_id .. "!"
     echohl None
     return
   end
@@ -164,7 +170,6 @@ function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
   " sometimes on_message and on_message_exit come very close together
   call nvim_buf_clear_namespace(a:buffer, luaeval("vimcord.LINKS_NAMESPACE"), end_line, end_line + 1)
 
-  let window = bufwinid(a:buffer)
   let bufindentopt = nvim_win_get_option(window, "breakindentopt")
   try
     let split_width = str2nr(

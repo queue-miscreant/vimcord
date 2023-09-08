@@ -24,7 +24,7 @@ class DiscordBridge:
         self.plugin = plugin
         self.discord_pipe = None
 
-        self._buffer = plugin.nvim.lua.vimcord.init()
+        self._buffer = plugin.nvim.lua.vimcord.create_window()
 
         self._last_channel = None
         self.all_messages = {}

@@ -67,11 +67,13 @@ Done:
 - reply @ completion
 
 Todo:
+- temp buffer for messages
 - sign column tricks for private messages (display user connection status?)
 - sorting buffer
 
 - Syntax for discord markdown-like
 
-
 - Future
     - Multiple buffers: main accumulator, but can open one for each channel
+
+- Try using extmarks for usernames?

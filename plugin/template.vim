@@ -24,7 +24,7 @@ hi def link VimcordAdditional NonText
 
 
 function VimcordTest()
-  if exists("b:vimcord_target_channel")
+  if exists("b:vimcord_target_channel") && b:vimcord_target_channel !=# v:null
     return b:vimcord_target_channel
   endif
   return ""
