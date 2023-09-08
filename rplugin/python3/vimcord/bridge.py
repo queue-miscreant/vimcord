@@ -198,9 +198,11 @@ class DiscordBridge:
             )
 
         links, reply, message = clean_post(self, post)
+        if message.split("\n") == []:
+            log.debug("DETECTED BAD MESSAGE CONTENTS: %s in channel %s", repr(post.content), str(post.channel))
         self.plugin.nvim.lua.vimcord.append_to_buffer(
             self._buffer,
-            message.split("\n"),
+            message.split("\n") or [""],
             reply,
             {
                 "message_id": post.id,

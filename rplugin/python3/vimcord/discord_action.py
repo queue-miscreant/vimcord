@@ -9,6 +9,8 @@ log.setLevel("DEBUG")
 
 def parse_mentions(text, server):
     '''Convert all literal @s into semantic ones for discord'''
+    if server is None:
+        return text
     for i in server.members:
         text = text.replace(f"@{i.display_name}", i.mention)
     return text
@@ -51,7 +53,7 @@ class DiscordAction:
             return
 
         server = next(
-            filter(lambda x: x.id == message_data.server.id, self.bridge._servers),
+            filter(lambda x: x.id == message_data["server_id"], self.bridge._servers),
             None
         ) if getattr(channel, "server", None) is not None else "DM"
         if server is None:
@@ -122,7 +124,7 @@ class DiscordAction:
             return
 
         server = next(
-            filter(lambda x: x.id == message_data.server.id, self.bridge._servers),
+            filter(lambda x: x.id == message_data["server_id"], self.bridge._servers),
             None
         ) if getattr(channel, "server", None) is not None else "DM"
         if server is None:
@@ -143,7 +145,7 @@ class DiscordAction:
             return
 
         server = next(
-            filter(lambda x: x.id == message_data.server.id, self.bridge._servers),
+            filter(lambda x: x.id == message_data["server_id"], self.bridge._servers),
             None
         ) if getattr(channel, "server", None) is not None else "DM"
         if server is None:

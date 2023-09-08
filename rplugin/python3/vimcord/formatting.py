@@ -80,13 +80,13 @@ def format_channel(channel, width=80, raw=False):
         if raw:
             return str(channel)
         channel_name = ellipsize(str(channel), width - 5)
-        return f"--- {channel_name} ".ljust(width - 1, "-")
+        return f"--- {channel_name} ".ljust(width, "-")
     # want both server and channel names
     server_name = ellipsize(str(channel.server), width // 2)
     channel_name = ellipsize(str(channel), width // 2 - 5)
     if raw:
         return f"{server_name}#{channel_name}"
-    return f"--- {server_name}#{channel_name} ".ljust(width - 1, "-")
+    return f"--- {server_name}#{channel_name} ".ljust(width, "-")
 
 # 256-color helper----------------------------------------------------------------------------------
 
