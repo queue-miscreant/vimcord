@@ -19,62 +19,33 @@ function s:echo(text, ...)
   echohl None
 endfunction
 
-function vimcord#action#open_reply(is_reply) range
-  if len(b:discord_content) <= a:firstline - 1
-    echohl ErrorMsg
-    echo "No message under cursor"
-    echohl None
-    return
+function s:enter_reply_buffer(target_data, buffer_contents)
+  " Set status by peeking into target data
+  if exists("a:target_data.data.channel_id")
+    try
+      let channel_id = a:target_data["data"]["channel_id"]
+      let b:vimcord_target_channel = b:vimcord_channel_names[channel_id]
+
+      if exists(":AirlineRefresh")
+        AirlineRefresh!
+        redrawstatus
+      endif
+    catch
+    endtry
   endif
 
-  let message_data = b:discord_content[a:firstline - 1]
+  let b:vimcord_reply_target_data = a:target_data
+  call nvim_buf_set_var(b:vimcord_reply_buffer, "vimcord_entering_buffer", 1)
 
-  let prev_cursorline = &cursorline
-  if a:is_reply
-    if !exists("message_data.message_id")
-      return
-    endif
-    setlocal cursorline
+  let target_window = bufwinnr(b:vimcord_reply_buffer)
+  exe target_window .. "wincmd w"
+  if len(a:buffer_contents) !=# 0
+    call setline(1, a:buffer_contents)
   endif
 
-  if exists("b:vimcord_channel_names." . message_data["channel_id"])
-    let b:vimcord_target_channel = b:vimcord_channel_names[message_data["channel_id"]]
-
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  endif
-
-  if message_data["server_id"] !=# v:null
-    let s:ats = b:vimcord_server_members[message_data["server_id"]]
-  endif
-
-  " Wrapping this in try to ignore ctrl-c
-  try
-    let content = input("", "", "customlist," . expand("<SID>") . "complete_ats")
-    call timer_start(0, { -> s:echo("") })
-    if content !=# ""
-      call VimcordInvokeDiscordAction("message", message_data, content, a:is_reply)
-      normal Gzb0
-    endif
-  catch /Vim:Interrupt/
-  endtry
-
-  let s:ats = []
-
-  if a:is_reply
-    let &cursorline = prev_cursorline
-  endif
-
-  try
-    unlet b:vimcord_target_channel
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  catch
-  endtry
+  " TODO: set completion 
+  " TODO: remove completion onwinleave
+  startinsert!
 endfunction
 
 function vimcord#action#delete() range
@@ -108,120 +79,6 @@ function vimcord#action#edit_end(raw_data, message_data)
         \ )
 endfunction
 
-function s:edit_end(raw_data, message_data)
-  try
-    let b:vimcord_target_channel = b:vimcord_channel_names[a:message_data["channel_id"]]
-
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  catch
-  endtry
-
-  if a:message_data["server_id"] !=# v:null
-    let s:ats = b:vimcord_server_members[a:message_data["server_id"]]
-  endif
-
-  try
-    let content = input("", "", "customlist," . expand("<SID>") . "complete_ats")
-    call timer_start(0, { -> s:echo("") })
-    if content ==# ""
-      call VimcordInvokeDiscordAction("delete", a:message_data["message_id"])
-    else
-      call VimcordInvokeDiscordAction("edit", a:message_data, content)
-    endif
-  catch /Vim:Interrupt/
-  endtry
-
-  let s:ats = []
-
-  try
-    unlet b:vimcord_target_channel
-
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  catch
-  endtry
-endfunction
-
-function vimcord#action#write_channel() range
-  function! Completer(arglead, cmdline, cursorpos) closure
-    return filter(values(b:vimcord_channel_names), { _, x -> x =~ a:arglead })
-  endfunction
-
-  " Get the channel name by name
-  try
-    let channel_name = input("Channel: ", "", "customlist,Completer")
-  catch /Vim:Interrupt/
-    return
-  endtry
-
-  if channel_name ==# ""
-    return
-  endif
-
-  " Reverse-lookup for id
-  let channel_id = ""
-  for [id, name] in items(b:vimcord_channel_names)
-    if name ==# channel_name
-      let channel_id = id
-      break
-    endif
-  endfor
-  if channel_id ==# ""
-    call timer_start(0, { -> s:echo("Server name not found", "ErrorMsg") })
-    return
-  endif
-
-  " Set status
-  try
-    let b:vimcord_target_channel = b:vimcord_channel_names[channel_id]
-
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  catch
-  endtry
-
-  " TODO
-  " let ats = []
-  " if message_data["server_id"] !=# v:null
-  "   let ats = copy(b:vimcord_server_members[message_data["server_id"]])
-  " endif
-  " function! Ats(arglead, cmdline, cursorpos) closure
-  "   let last_at = strridx(a:cmdline, "@", a:cursorpos)
-  "   if last_at !=# -1
-  "     let atrange = a:cmdline[last_at+1:a:cursorpos]
-  "     let ret = map(filter(ats, { _, v -> stridx(v, atrange) == 0 }), { _, v -> a:cmdline[:last_at-1] . v .  a:cmdline[last_at+1:]})
-  "     return ret
-  "   endif
-  "   return []
-  " endfunction
-
-  try
-    " let content = input("", a:raw_data, "customlist,Ats")
-    let content = input("")
-    call timer_start(0, { -> s:echo("") })
-    if content !=# ""
-      call VimcordInvokeDiscordAction("try_post_channel", channel_id, content)
-    endif
-  catch /Vim:Interrupt/
-  endtry
-
-  try
-    unlet b:vimcord_target_channel
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  catch
-  endtry
-endfunction
-
 function vimcord#action#reconnect()
   call VimcordInvokeDiscordAction("try_reconnect")
 endfunction
@@ -246,55 +103,20 @@ function vimcord#action#new_open_reply(is_reply) range
     setlocal cursorline
   endif
 
-  let b:vimcord_reply_target_data = {
-        \ "data": message_data,
-        \ "action": "new_reply"
-        \ }
-
-  if exists("b:vimcord_channel_names." . message_data["channel_id"])
-    let b:vimcord_target_channel = b:vimcord_channel_names[message_data["channel_id"]]
-
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  endif
-
-  if message_data["server_id"] !=# v:null
-    let s:ats = b:vimcord_server_members[message_data["server_id"]]
-  endif
-
-  let target_window = bufwinnr(b:vimcord_reply_buffer)
-  exe target_window .. "wincmd w"
-  startinsert
-  " TODO: set completion 
-  " TODO: remove completion onwinleave
+  call s:enter_reply_buffer({
+        \   "data": message_data,
+        \   "action": "new_reply"
+        \ },
+        \ "")
 endfunction
 
 function s:new_edit_end(raw_data, message_data)
-  try
-    let b:vimcord_target_channel = b:vimcord_channel_names[a:message_data["channel_id"]]
-
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  catch
-  endtry
-
-  if a:message_data["server_id"] !=# v:null
-    let s:ats = b:vimcord_server_members[a:message_data["server_id"]]
-  endif
-
-  let b:vimcord_reply_target_data = {
-        \ "data": a:message_data,
-        \ "action": "new_edit"
-        \ }
-
-  let target_window = bufwinnr(b:vimcord_reply_buffer)
-  exe target_window .. "wincmd w"
-  call setline(1, a:raw_data)
-  startinsert!
+  call s:enter_reply_buffer({
+          \   "data": a:message_data,
+          \   "action": "new_edit"
+          \ },
+          \ a:raw_data
+          \ )
 endfunction
 
 function vimcord#action#new_write_channel() range
@@ -303,6 +125,7 @@ function vimcord#action#new_write_channel() range
   endfunction
 
   " Get the channel name by name
+  " TODO: investigate a better way of doing this (new split, etc)
   try
     let channel_name = input("Channel: ", "", "customlist,Completer")
   catch /Vim:Interrupt/
@@ -322,31 +145,13 @@ function vimcord#action#new_write_channel() range
     endif
   endfor
   if channel_id ==# ""
-    call timer_start(0, { -> s:echo("Server name not found", "ErrorMsg") })
+    call timer_start(0, { -> s:echo("Channel name not found", "ErrorMsg") })
     return
   endif
 
-  " Set status
-  try
-    let b:vimcord_target_channel = b:vimcord_channel_names[channel_id]
-
-    if exists(":AirlineRefresh")
-      AirlineRefresh!
-      redrawstatus
-    endif
-  catch
-  endtry
-
-  " if a:message_data["server_id"] !=# v:null
-  "   let s:ats = b:vimcord_server_members[a:message_data["server_id"]]
-  " endif
-
-  let b:vimcord_reply_target_data = {
-        \ "data": { "channel_id": channel_id },
-        \ "action": "new_try_post_channel"
-        \ }
-
-  let target_window = bufwinnr(b:vimcord_reply_buffer)
-  exe target_window .. "wincmd w"
-  startinsert!
+  call s:enter_reply_buffer({
+        \   "data": { "channel_id": channel_id },
+        \   "action": "new_try_post_channel"
+        \ },
+        \ "")
 endfunction

@@ -77,3 +77,7 @@ Todo:
     - Multiple buffers: main accumulator, but can open one for each channel
 
 - Try using extmarks for usernames?
+- media links (videos, images) available from vim with ctrl-g (for image previews, etc)
+- vertical tabs for stuff and things
+- show visited links with extmark highlights instead of syntax
+- completion in reply buffer

@@ -18,7 +18,7 @@ function vimcord#scroll_cursor(lines_added)
     normal Gzb0
   endif
 
-  redraw
+  call timer_start(0, { -> execute("redraw") })
 endfunction
 
 function vimcord#push_buffer_contents()
