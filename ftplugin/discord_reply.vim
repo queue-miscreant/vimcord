@@ -30,10 +30,26 @@ function s:complete_reply(findstart, base)
   return filter(members, "v:val =~ a:base")
 endfunction
 
+function s:vimcord_reply_tab(backwards)
+  let insert_char = "\<tab>"
+  if pumvisible()
+    if a:backwards
+      let insert_char = "\<c-p>"
+    else
+      let insert_char = "\<c-n>"
+    endif
+  endif
+
+  return insert_char
+endfunction
+
 " Plugin maps
 map <silent><buffer> <plug>(vimcord_push_contents) :call vimcord#push_buffer_contents()<cr>
 map <silent><buffer> <plug>(vimcord_forget_buffer) <esc>:call vimcord#forget_reply_contents()<cr>
 " imap <silent><buffer> <plug>(vimcord_complete_reply) <c-r>=vimcord#complete_reply()<cr>
+
+exe "imap <buffer><silent> <plug>(vimcord_reply_tab) <c-r>=" .. expand("<SID>") .. "vimcord_reply_tab(0)<cr>"
+exe "imap <buffer><silent> <plug>(vimcord_reply_tab_back) <c-r>=" .. expand("<SID>") .. "vimcord_reply_tab(1)<cr>"
 
 " Real maps
 nmap <silent><buffer> <enter> <plug>(vimcord_push_contents)
@@ -41,7 +57,10 @@ imap <silent><buffer> <enter> <esc><plug>(vimcord_push_contents)
 
 nmap <silent><buffer> <c-c> <plug>(vimcord_forget_buffer)
 imap <silent><buffer> <c-c> <esc><plug>(vimcord_forget_buffer)
+
 imap <buffer> @ @<c-x><c-u>
+imap <buffer> <tab> <plug>(vimcord_reply_tab)
+imap <buffer> <s-tab> <plug>(vimcord_reply_tab_back)
 
 " imap <silent><buffer> @ <plug>(vimcord_complete_reply)
 

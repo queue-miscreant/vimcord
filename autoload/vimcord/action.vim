@@ -1,21 +1,3 @@
-let s:ats = []
-function! s:complete_ats(arglead, cmdline, cursorpos)
-  let last_at = strridx(a:cmdline, "@", a:cursorpos)
-  if last_at !=# -1
-    let atrange = a:cmdline[last_at+1:a:cursorpos]
-    return map(
-          \ filter(copy(s:ats), { _, v -> stridx(v, atrange) == 0 }),
-          \ { _, v -> a:cmdline[:last_at] . v .  a:cmdline[last_at+2:]})
-  endif
-  return []
-endfunction
-
-function! s:complete_channel(arglead, cmdline, cursorpos)
-  " TODO: fuzzier
-  return filter(values(get(g:vimcord, "channel_names", {})), { _, x -> x =~ a:arglead })
-endfunction
-
-
 function s:echo(text, ...)
   if a:0 >= 2
     execute "echohl " .. a:2
@@ -131,11 +113,16 @@ function s:new_edit_end(raw_data, message_data)
           \ )
 endfunction
 
+function! s:complete_channel(arglead, cmdline, cursorpos)
+  " TODO: fuzzier
+  return filter(values(get(g:vimcord, "channel_names", {})), { _, x -> x =~ a:arglead })
+endfunction
+
 function vimcord#action#new_write_channel() range
   " Get the channel name by name
   " TODO: investigate a better way of doing this (new split, etc)
   try
-    let channel_name = input("Channel: ", "", expand("customlist,<SID>complete_channel"))
+    let channel_name = input("Channel: ", "", "customlist," .. expand("<SID>") .. "complete_channel")
   catch /Vim:Interrupt/
     return
   endtry

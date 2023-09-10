@@ -13,7 +13,7 @@ import pickle
 import traceback
 
 log = logging.getLogger(__name__)
-log.setLevel("INFO")
+log.setLevel("DEBUG")
 
 class PicklePipeException(Exception):
     '''Exception object passed when pickling errors occur'''
