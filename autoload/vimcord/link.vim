@@ -93,10 +93,10 @@ endfunction
 
 function vimcord#link#open_image(link)
   echo "Opening image..."
-  call system("feh " . shellescape(a:link) . " &")
+  call system(g:vimcord_image_opener . " " . shellescape(a:link) . " &")
 endfunction
 
 function vimcord#link#open_video(link)
   echo "Playing video..."
-  call system("mpv " . shellescape(a:link) . " &")
+  call system(g:vimcord_video_opener . " " . shellescape(a:link) . " &")
 endfunction

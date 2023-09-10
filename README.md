@@ -1,12 +1,19 @@
 neovimpv
 ========
 
-Plugin description
+vimcord: a Vim plugin for discord
 
-Requirements
+
+Feature List
 ------------
 
-Plugin requirements
+- Messages from unmuted channels displayed in buffer with appropriate name coloring
+- Direct replies
+- Member @ completion when writing replies
+- Drag-and-drop image uploads
+- Link previews from OpenGraph
+- Intelligent link openers depending on media content
+- Airline integration
 
 
 Installation
@@ -14,73 +21,186 @@ Installation
 
 ### Vundle
 
-<!--
 Place the following in `~/.config/nvim/init.vim`:
 ```vim
-Plugin 'queue-miscreant/neovimpv'
+Plugin 'queue-miscreant/vimcord'  {'do': 'UpdateRemotePlugins'}
 ```
 Make sure the file is sourced and run `:PluginInstall`.
--->
+
+
+Dependencies
+------------
+
+Requires the following Python packages:
+
+- pynvim
+- aiohttp
+- websockets
+
+
+### Optional Dependencies
+
+The following programs are the default openers for media content.
+Different ones can be used by the user, so they are not strictly required.
+
+- mpv
+- feh
+
+
+### Disclaimer
+
+The plugin comes with an older version of [Rapptz's discord library](https://github.com/Rapptz/discord.py),
+with some minor modifications. It includes some small compatibility fixes to
+work with later versions of asyncio (probably destroying what little
+compatibility it implemented at the time) as well as implementing message
+references.
+It's supplied here because it still supports logging in via username and password
+and it's what I'm most familiar with.
 
 
 Commands
 --------
 
-Plugin commands
+### :Discord
+
+The main command. This opens up a pair of windows: the Discord buffer and the
+reply buffer.
+
+The Discord buffer contains all messages received from unmuted channels from
+Discord. At this point, there isn't a way to show the contents of muted
+channels. This may change in the future, but it's done to keep the amount of
+noise in the window to a minimum. See "keybinds" for more.
+
+The reply buffer is normally unenterable. Bindings from the Discord buffer will
+place the cursor within its window in order to type a message.
 
 
-Functions
----------
+### :KillDiscord
 
-Exposed functions
+Kills the Discord daemon and attempt to reopen a connection. At the moment, this
+isn't supported very well. Use this at your own caution.
+
 
 Keys
 ----
 
-Plugin keybinds
+### Message buffer
+
+| Key(s)    | Mnemonic          | Explanation
+|-----------|-------------------|-------------------------------------------------------------
+| `i`       | `i`nsert message  | Enters the reply buffer, targeting the channel of the message currently under the cursor
+| `I`       | `I`nsert reply    | Like `i`, but marks the message under the cursor as a reference (i.e., a discord reply)
+| `r`, `R`  | `r`eplace message | Attempts to retrieve the message under the cursor for editing and enters the reply buffer. Does not work if you are not the author of the post.
+| `X`, `D`  | `d`elete message  | Attempts to delete the message under the cursor. These are shifted characters to unintentional deletions.
+| `A`       | `a`ppend message  | Prompts the user for a channel name, which can be completed by tabbing. Enters the reply buffer, targeting the channel if it exists.
+| `gx`      | `G`o lin`ks`      | Attempts to open the word under the cursor as a link. Uses the currently-set link openers (see configuration)
+| `<c-g>`   | (See above)       | Attempt to open the first link before the current cursor position using the same method as `gx`.
+| `<a-g>`   | (See above)       | Attempt to open the first link before the current cursor position. Additional media content set on the message is opened, instead of the actual link.
+| `<enter>` | Enter reference   | Attempt to find the referenced message in the buffer, then move the cursor to the line containing it
+
+Note: after "entering" the reply buffer, you will be in insert mode in its
+window.
+
+
+### Reply buffer
+
+| Key(s)    | Mnemonic  | Explanation
+|-----------|-----------|-------------------------------------------------------------
+| `<c-c>`   | `C`ancel  | Returns the cursor to the previous window. Works in normal and insert mode.
+| `<enter>` | Submit    | Submit the message using the means supplied when the buffer was entered. I.e., send or edit the message. Works in normal and insert modes. If you want to insert a newline, use `<s-enter>` instead.
+| `@`       | `At` user | Starts completion based on the members of the channel currently targetted. `<tab>` and `<s-tab>` can be used to navigate this list. Only works in insert mode.
+
+Note that leaving the reply buffer for any reason will cause its contents to be
+deleted and the reply action (send message, edit) to be forgotten.
 
 
 Configuration
 -------------
 
-Global variables
+### `g:vimcord_discord_username`, `g:vimcord_discord_password`
+
+Login credentials for discord. It goes without saying that exposing these
+in your `.vimrc` is dangerous and inadvisable.
+Work is planned for making this better.
+
+
+### `g:vimcord_dnd_paste_threshold`
+
+The minimum number of inserted characters for which the reply buffer can
+recognize that a file has been dragged-and-dropped to test for a filename.
+When less than or equal to zero, disables, events in the reply buffer which
+check for pastes are not bound.
+
+Default value is 8 (enabled).
+
+
+### `g:vimcord_image_opener`
+
+Command name or path to executable to use to open image links.
+
+Default value is `feh`.
+
+
+### `g:vimcord_video_opener`
+
+Command name or path to executable to use to open video links.
+
+Default value is `mpv`.
+
+
+### `g:vimcord_image_link_formats`
+
+List of patterns which, when matched by a link, will be opened as an image
+when using `gx` or `ctrl-g`.
+
+Default values is an empty list.
+
+
+### `g:vimcord_video_link_formats`
+
+List of patterns which, when matched by a link, will be opened as a video
+when using `gx` or `ctrl-g`.
+
+Default value supports links from YouTube and TikTok.
+
+
+### `g:vimcord_image_mimes`
+
+List of MIME types which, when matched by the HEAD of a link, will be opened
+as an image when using `gx` or `ctrl-g`.
+
+Default value is `["image/png", "image/jpeg"]`
+
+
+### `g:vimcord_video_mimes`
+
+List of MIME types which, when matched by the HEAD of a link, will be opened
+as a video when using `gx` or `ctrl-g`.
+
+Default value is `["image/gif", "video/.*"]`
 
 
 Highlights
 ----------
 
-Plugin highlights
+See the helpdoc for information regarding highlights.
 
 
 TODOs
 -----
 
-Done:
-- ctrl-g
-- link visiting
-- opengraph extmarks
-- Add message to named channel (no replies) (KINDA)
-- rely on vimscript functions more
-- status bar
-- Remove `raw_message` from data sent to buffer
-- reply extmarks
-- reply @ completion
-- Globalize variables like reply buffer
-- temp buffer for messages
-- media links (videos, images) available from vim with alt-g (for image previews, etc)
-- image uploading
+- Planned soon
+    - Option to disable link previews
+    - Log in by means other than variables
+    - Sorting the main buffer based on message channel id
+    - Show visited links with extmark highlights instead of in-document colors using syntax
 
-Todo:
-- sorting buffer
-- show visited links with extmark highlights instead of syntax
-- variable cleanup, documentation
+- Unplanned - maybe soon?
+    - Display user connection status (sign column tricks?)
+    - Separate multiple lines better (`linebreak` appears to allow horizontal tabs to do this?)
+    - Separate discord content out from "normal" reply window/message window pipeline
 
-- Maybe soon
-    - sign column tricks for private messages (display user connection status?)
-    - tabs instead of newlines for message continuation?
-    - separate discord content out from "normal" reply window/message window pipeline
-
-- Future
-    - Multiple buffers: main accumulator, but can open one for each channel
+- Future work
+    - Per-channel buffers: keep main accumulator, but extras can be opened (especially for muted channels)
     - Syntax for discord pseudo-markdown
-    - Try using extmarks for usernames?
+    - Alternate display mode using `virt_lines_leftcol` for post authors

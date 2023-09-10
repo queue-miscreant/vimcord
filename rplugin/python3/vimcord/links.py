@@ -191,7 +191,7 @@ async def get_link_content(link):
             return await coro
         return await SpecialOpeners.title_and_description(link)
     except LinkEmptyException:
-        return []
+        return [], []
 
 # for testing purposes
 if __name__ == "__main__":

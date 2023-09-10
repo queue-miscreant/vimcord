@@ -1,0 +1,220 @@
+*vimcord.txt*					        A Discord client for neovim.
+
+================================================================================
+INTRODUCTION                                            *vimcord-introduction*
+
+vimcord: a Vim plugin for Discord.
+
+To get started, set |g:vimcord_discord_username| and
+|g:vimcord_discord_password|, then run |:Discord|. See
+|vimcord-discord-message-buffer| for keybinds.
+
+This plugin requires the following Python packages:
+- pynvim
+- aiohttp
+- websockets
+
+In addition, `feh` and `mpv` are optional requirements used as defaults for
+media link opening. This can be changed by using |g:vimcord_image_opener| and
+|g:vimcord_video_opener|.
+
+                                                        *vimcord-daemon*
+
+All discord communication is done via a daemon process which uses a temp
+directory at `/tmp/vimcord_server`. The PID is written to a file named `pid`,
+and the socket for communicating with the process is named `socket`. The
+directory also contains logs for the daemon at `daemon.log`.
+
+--------------------------------------------------------------------------------
+COMMANDS                                                *vimcord-command*
+
+
+:Discord                                                *:Discord*
+
+The main command. This opens up a pair of windows: the Discord buffer and the
+reply buffer.
+
+The Discord buffer contains all messages received from unmuted channels from
+Discord. At this point, there isn't a way to show the contents of muted
+channels. This may change in the future, but it's done to keep the amount of
+noise in the window to a minimum. See "keybinds" for more.
+
+The reply buffer is normally unenterable. Bindings from the Discord buffer will
+place the cursor within its window in order to type a message.
+
+
+:KillDiscord                                            *:KillDiscord*
+
+Kills the Discord daemon and attempt to reopen a connection. At the moment, this
+isn't supported very well. Use this at your own caution.
+
+
+--------------------------------------------------------------------------------
+DISCORD MESSAGE BUFFER                                  *vimcord-discord-message-buffer*
+
+The following key bindings are available from the Discord message buffer.
+
+i       `i`nsert message.       Enters the reply buffer, targeting the channel
+                              of the message currently under the cursor.
+
+I       `I`nsert reply          Like `i`, but marks the message under the
+                              cursor as a reference (i.e., a discord reply)
+
+r, R    `r`eplace message       Attempts to retrieve the message under the
+                              cursor for editing and enters the reply buffer.
+
+                              Does not work if you are not the author of the
+                              post.
+
+X, D    `d`elete message        Attempts to delete the message under the cursor.
+                              These are shifted characters to unintentional
+                              deletions.
+
+A       `a`ppend message        Prompts the user for a channel name, which can
+                              be completed by tabbing. Enters the reply buffer,
+                              targeting the channel if it exists.
+
+<enter> Enter reference       Attempt to find the referenced message in the
+                              buffer, then move the cursor to the line
+                              containing it.
+
+gx      `G`o lin`ks`              Attempts to open the word under the cursor as
+                              a link. Uses the currently-set link openers
+                              (see |g:vimcord_image_opener| and
+                              |g:vimcord_video_opener|).
+
+<c-g>   (See above)           Attempt to open the first link before the current
+                              cursor position using the same method as `gx`.
+
+<a-g>   (See above)           Attempt to open the first link before the current
+                              cursor position. Additional media content set on
+                              the message is opened, instead of the actual link.
+
+Note: after "entering" the reply buffer, you will be in insert mode in its
+window.
+
+
+--------------------------------------------------------------------------------
+REPLY BUFFER                                            *vimcord-reply-buffer*
+
+<c-c>           `C`ancel        Returns the cursor to the previous window.
+                              Works in normal and insert modes.
+
+<enter>         Submit        Submit the message using the means supplied when
+                              the buffer was entered.
+                              I.e., send or edit the message.
+
+                              Works in normal and insert modes.
+
+                              If you want to insert a newline, use <s-enter>
+                              instead.
+
+@               At user       Starts completion based on the members of the
+                              targeted channel.
+
+                              <tab> and <s-tab> can be used to navigate this
+                              list. Only works in insert mode.
+
+Note that leaving the reply buffer for any reason will cause its contents to be
+deleted and the reply action (send message, edit) to be forgotten.
+
+                                                        *vimcord-drag-and-drop*
+Many terminal emulators handle drag-and-dropping files as sending the filename
+as input. If this happens while the reply buffer is in insert mode, the
+filename will NOT be appended as buffer contents, but the file will be
+considered "attached" to post being typed.
+
+
+--------------------------------------------------------------------------------
+CONFIGURATION                                           *vimcord-configuration*
+
+                                                        *vimcord-credentials*
+g:vimcord_discord_username                              *g:vimcord_discord_username*
+g:vimcord_discord_password                              *g:vimcord_discord_password*
+
+Login credentials for discord. It goes without saying that exposing these
+in your `.vimrc` is dangerous and inadvisable.
+
+Work is planned for making this better.
+
+
+g:vimcord_dnd_paste_threshold                           *g:vimcord_dnd_paste_threshold*
+
+The minimum number of inserted characters for which the reply buffer can
+recognize that a file has been dragged-and-dropped to test for a filename.
+When less than or equal to zero, disables, events in the reply buffer which
+check for pastes are not bound.
+
+Default value is 8 (enabled).
+
+
+g:vimcord_image_opener                                  *g:vimcord_image_opener*
+
+Command name or path to executable to use to open image links.
+
+Default value is `feh`.
+
+
+g:vimcord_video_opener                                  *g:vimcord_video_opener*
+
+Command name or path to executable to use to open video links.
+
+Default value is `mpv`.
+
+
+g:vimcord_image_link_formats                           *g:vimcord_image_link_formats*
+
+List of patterns which, when matched by a link, will be opened as an image
+when using `gx` or `ctrl-g`.
+
+Default values is an empty list.
+
+
+g:vimcord_video_link_formats                           *g:vimcord_video_link_formats*
+
+List of patterns which, when matched by a link, will be opened as a video
+when using `gx` or `ctrl-g`.
+
+Default value supports links from YouTube and TikTok.
+
+
+g:vimcord_image_mimes                                  *g:vimcord_image_mimes*
+
+List of MIME types which, when matched by the HEAD of a link, will be opened
+as an image when using `gx` or `ctrl-g`.
+
+Default value is `["image/png", "image/jpeg"]`
+
+
+g:vimcord_video_mimes                                  *g:vimcord_video_mimes*
+
+List of MIME types which, when matched by the HEAD of a link, will be opened
+as a video when using gx or <c-g>.
+
+Default value is `["image/gif", "video/.*"]`
+
+
+--------------------------------------------------------------------------------
+HIGHLIGHTS                                              *vimcord-highlights*
+
+The following highlight groups are intended to be open to the end user:
+
+VimcordOGDefault                The default highlight group used for unknown
+                                OpenGraph contents in link previews.
+
+VimcordOGSiteName               Used for displaying the contents of
+                                `<og:site-name>`
+
+VimcordOGTitle                  Used for displaying the contents of
+                                `<og:title>`
+
+VimcordOGDescription            Used for displaying the contents of
+                                `<og:description>`
+
+VimcordAdditional               The highlight group used for additional data
+                                obtained from OpenGraph. This is typically
+                                used to display number of images or videos
+                                found.
+
+================================================================================
+vim:tw=80:nosta:ft=help:fen:

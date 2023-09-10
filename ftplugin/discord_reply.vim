@@ -44,8 +44,8 @@ function s:vimcord_reply_tab(backwards)
 endfunction
 
 " Plugin maps
-map <silent><buffer> <plug>(vimcord_push_contents) :call vimcord#push_buffer_contents()<cr>
-map <silent><buffer> <plug>(vimcord_forget_buffer) <esc>:call vimcord#forget_reply_contents()<cr>
+nmap <silent><buffer> <plug>(vimcord_push_contents) :call vimcord#push_buffer_contents()<cr>
+nmap <silent><buffer> <plug>(vimcord_forget_buffer) :call vimcord#forget_reply_contents()<cr>
 " imap <silent><buffer> <plug>(vimcord_complete_reply) <c-r>=vimcord#complete_reply()<cr>
 
 exe "imap <buffer><silent> <plug>(vimcord_reply_tab) <c-r>=" .. expand("<SID>") .. "vimcord_reply_tab(0)<cr>"
@@ -57,6 +57,7 @@ imap <silent><buffer> <enter> <esc><plug>(vimcord_push_contents)
 
 nmap <silent><buffer> <c-c> <plug>(vimcord_forget_buffer)
 imap <silent><buffer> <c-c> <esc><plug>(vimcord_forget_buffer)
+nmap <silent><buffer> <esc> <plug>(vimcord_forget_buffer)
 
 imap <buffer> @ @<c-x><c-u>
 imap <buffer> <tab> <plug>(vimcord_reply_tab)
@@ -121,7 +122,7 @@ augroup discord_reply
   autocmd WinClosed <buffer> call timer_start(0, { -> vimcord#create_reply_window(1) })
   autocmd WinEnter <buffer> call timer_start(0, { -> s:window_return() })
 
-  if g:vimcord_dnd_filenames
+  if g:vimcord_dnd_paste_threshold > 0
     autocmd TextChangedI <buffer> call timer_start(0, { -> s:add_drag_and_drop(getpos("."))})
     autocmd CursorMovedI <buffer> call timer_start(0, { -> s:update_cursor(getpos("."))})
   endif

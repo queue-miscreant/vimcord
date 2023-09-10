@@ -2,13 +2,11 @@ function s:enter_reply_buffer(target_data, buffer_contents)
   " Set status by peeking into target data
   if exists("a:target_data.data.channel_id")
     " XXX: Interface with other status line plugins?
+    " Not-so-easy otherwise
     if !exists(":AirlineRefresh")
-      " Not-so-easy otherwise
-      if !exists(":AirlineRefresh")
-        for window in win_findbuf(g:vimcord["reply_buffer"])
-          call nvim_win_set_option(window, "statusline", VimcordShowChannel())
-        endfor
-      endif
+      for window in win_findbuf(g:vimcord["reply_buffer"])
+        call nvim_win_set_option(window, "statusline", VimcordShowChannel())
+      endfor
     endif
   endif
 

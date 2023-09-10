@@ -7,17 +7,18 @@ lua require("vimcord")
 
 let g:vimcord_discord_username = get(g:, "vimcord_discord_username", "")
 let g:vimcord_discord_password = get(g:, "vimcord_discord_password", "")
-let g:vimcord_dnd_filenames = get(g:, "vimcord_dnd_filenames", 1)
 let g:vimcord_dnd_paste_threshold = get(g:, "vimcord_dnd_paste_threshold", 8)
 
 " Link open settings
+let g:vimcord_image_opener = get(g:, "vimcord_image_link_formats", "feh")
+let g:vimcord_video_opener = get(g:, "vimcord_image_link_formats", "mpv")
+
 let g:vimcord_image_link_formats = get(g:, "vimcord_image_link_formats", [])
 let g:vimcord_video_link_formats = get(g:, "vimcord_video_link_formats", [
       \ "youtube.com/watch",
       \ "youtube.com/shorts",
       \ "youtu.be/",
-      \ "tiktok.com/t/",
-      \ "tenor.com/view"
+      \ "tiktok.com/t/"
       \ ])
 let g:vimcord_image_mimes = get(g:, "vimcord_image_mimes", ["image/png", "image/jpeg"])
 let g:vimcord_video_mimes = get(g:, "vimcord_video_mimes", ["image/gif", "video/.*"])
@@ -64,6 +65,6 @@ let g:airline_filetype_overrides["discord_messages"] = get(
       \ )
 let g:airline_filetype_overrides["discord_reply"] = get(
       \ g:airline_filetype_overrides,
-      \ "discord_messages",
+      \ "discord_reply",
       \ ["Message", "%{VimcordShowChannel()}"]
       \ )
