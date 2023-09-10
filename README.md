@@ -65,19 +65,22 @@ Done:
 - Remove `raw_message` from data sent to buffer
 - reply extmarks
 - reply @ completion
+- Globalize variables like reply buffer
+- temp buffer for messages
 
 Todo:
-- temp buffer for messages
 - sign column tricks for private messages (display user connection status?)
 - sorting buffer
+- media links (videos, images) available from vim with ctrl-g (for image previews, etc)
 
 - Syntax for discord markdown-like
 
-- Future
-    - Multiple buffers: main accumulator, but can open one for each channel
-
 - Try using extmarks for usernames?
-- media links (videos, images) available from vim with ctrl-g (for image previews, etc)
 - vertical tabs for stuff and things
 - show visited links with extmark highlights instead of syntax
-- completion in reply buffer
+
+- separate discord content out from "normal" reply window/message window pipeline
+- variable cleanup
+
+- Future
+    - Multiple buffers: main accumulator, but can open one for each channel

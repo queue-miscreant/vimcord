@@ -1,7 +1,7 @@
 function vimcord#buffer#add_extra_data(discord_channels_dict, discord_members_dict, user_id)
-  let b:vimcord_channel_names = a:discord_channels_dict
-  let b:vimcord_server_members = a:discord_members_dict
-  let b:vimcord_discord_user_id = a:user_id
+  let g:vimcord["channel_names"] = a:discord_channels_dict
+  let g:vimcord["server_members"] = a:discord_members_dict
+  let g:vimcord["discord_user_id"] = a:user_id
 endfunction
 
 " Return the first line and last lines that match the message id given
@@ -195,6 +195,7 @@ function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
   end
 endfunction
 
+" TODO: still broken
 function vimcord#buffer#goto_reference() range
   if len(b:discord_content) <= a:firstline - 1
     echohl ErrorMsg
@@ -205,7 +206,7 @@ function vimcord#buffer#goto_reference() range
 
   let message_data = b:discord_content[a:firstline - 1]
   try
-    let reply_id = message_data[reply_message_id]
+    let reply_id = message_data["reply_message_id"]
   catch
     echohl ErrorMsg
     echo "Message has no reply"

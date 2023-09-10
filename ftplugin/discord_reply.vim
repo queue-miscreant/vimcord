@@ -1,43 +1,61 @@
 setlocal nonumber
-setlocal winfixheight
+" setlocal completefunc="s:complete_reply"
+exe "setlocal completefunc=" .. expand("<SID>") .. "complete_reply"
 
-if !(exists("b:vimcord_target_buffer"))
-  finish
-endif
+function s:complete_reply(findstart, base)
+  " first invocation: find the last "@"
+  if a:findstart ==# 1 && a:base ==# ""
+    let start_pos = getpos(".")
+    normal F@
+    let match_pos = col(".")
+    call cursor(start_pos[1:])
 
-nmap <silent><buffer> <enter> :call vimcord#push_buffer_contents()<cr>
-imap <silent><buffer> <enter> <esc>:call vimcord#push_buffer_contents()<cr>
+    " No @ found
+    if match_pos == start_pos[2]
+      return -3
+    endif
+    return match_pos
+  endif
 
-exe "imap <silent><buffer> <plug>(vimcord_forget_buffer) <esc>:call " 
-      \ .. expand("<SID>") .. "forget_buffer_contents()<cr>"
-imap <silent><buffer> <c-c> <plug>(vimcord_forget_buffer)
+  " second invocations: get members
+  if !(exists("g:vimcord.reply_target_data.data.server_id") && exists("g:vimcord.server_members"))
+    return []
+  endif
 
-function s:forget_buffer_contents()
-  let target_buffer = b:vimcord_target_buffer
-  try
-    let target_data = nvim_buf_get_var(target_buffer, "vimcord_reply_target_data")
-  catch
-    return
-  endtry
+  " TODO: technically we can just query the remote plugin here
+  let server_id = g:vimcord["reply_target_data"]["data"]["server_id"]
+  let members = get(g:vimcord["server_members"], server_id, [])
 
-  call vimcord#forget_buffer_contents(target_buffer, target_data)
+  echom members
+  return filter(members, "v:val =~ a:base")
 endfunction
 
-function s:reopen_reply_buffer(reply_buffer)
-  let reply_buf = nvim_buf_get_var(a:reply_buffer, "vimcord_reply_buffer")
-  exe "below sbuffer " .. reply_buf
-  resize 2
-endfunction
+" Plugin maps
+map <silent><buffer> <plug>(vimcord_push_contents) :call vimcord#push_buffer_contents()<cr>
+map <silent><buffer> <plug>(vimcord_forget_buffer) <esc>:call vimcord#forget_reply_contents()<cr>
+" imap <silent><buffer> <plug>(vimcord_complete_reply) <c-r>=vimcord#complete_reply()<cr>
 
+" Real maps
+nmap <silent><buffer> <enter> <plug>(vimcord_push_contents)
+imap <silent><buffer> <enter> <esc><plug>(vimcord_push_contents)
+
+nmap <silent><buffer> <c-c> <plug>(vimcord_forget_buffer)
+imap <silent><buffer> <c-c> <esc><plug>(vimcord_forget_buffer)
+imap <buffer> @ @<c-x><c-u>
+
+" imap <silent><buffer> @ <plug>(vimcord_complete_reply)
+
+" Autocmds
 function s:window_return()
-  let target_buffer = b:vimcord_target_buffer
   if exists("b:vimcord_entering_buffer")
     unlet b:vimcord_entering_buffer
     return
   endif
-  execute bufwinnr(target_buffer) .. "wincmd w"
+  wincmd p
 endfunction
 
-autocmd WinLeave <buffer> call s:forget_buffer_contents()
-autocmd WinClosed <buffer> call timer_start(0, { -> s:reopen_reply_buffer(str2nr(expand("<abuf>"))) })
-autocmd WinEnter <buffer> call timer_start(0, { -> s:window_return() })
+augroup discord_reply
+  autocmd WinLeave <buffer> call vimcord#forget_reply_contents()
+  autocmd WinClosed <buffer> call timer_start(0, { -> vimcord#create_reply_window(1) })
+  autocmd WinEnter <buffer> call timer_start(0, { -> s:window_return() })
+augroup end

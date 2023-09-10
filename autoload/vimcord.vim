@@ -1,4 +1,10 @@
 function vimcord#scroll_cursor(lines_added)
+  " Scroll cursor if we were at the bottom before adding lines
+  if getpos(".")[1:2] == [line("$") - a:lines_added, 1]
+    normal Gzb0
+    return
+  endif
+
   " until we're scrolled upward
   while line("w$") !=# line("$")
     " Save the window position
@@ -13,53 +19,89 @@ function vimcord#scroll_cursor(lines_added)
     endif
   endwhile
 
-  " Scroll cursor if we were at the bottom before adding lines
-  if line(".") == line("$") - a:lines_added
-    normal Gzb0
-  endif
-
   call timer_start(0, { -> execute("redraw") })
 endfunction
 
 function vimcord#push_buffer_contents()
-  let target_buffer = b:vimcord_target_buffer
-  try
-    let target_data = nvim_buf_get_var(target_buffer, "vimcord_reply_target_data")
-  catch
+  let target_data = get(g:vimcord, "reply_target_data", {})
+
+  if len(target_data) ==# 0
     echohl WarningMsg
     echo "No channel targeted"
     echohl None
     return
-  endtry
-
-  let buffer_contents = join(getline(1, line("$")), "\n")
-  if trim(buffer_contents) ==# ""
-    return
   endif
 
-  call VimcordInvokeDiscordAction(
-        \ target_data["action"],
-        \ target_data["data"],
-        \ buffer_contents
-        \ )
+  let buffer_contents = join(getbufline(
+        \ g:vimcord["reply_buffer"],
+        \ 1,
+        \ line("$")
+        \ ), "\n")
+  if trim(buffer_contents) !=# ""
+    call VimcordInvokeDiscordAction(
+          \ target_data["action"],
+          \ target_data["data"],
+          \ buffer_contents
+          \ )
+  endif
 
-  call vimcord#forget_buffer_contents(target_buffer, target_data)
+  call vimcord#forget_reply_contents()
 endfunction
 
-function vimcord#forget_buffer_contents(target_buffer, target_data)
-  call nvim_buf_set_var(a:target_buffer, "vimcord_reply_target_data", {})
-  call nvim_buf_set_var(a:target_buffer, "vimcord_target_channel", v:null)
+function vimcord#forget_reply_contents()
+  " Remove the status line
+  if exists("g:vimcord.reply_target_data")
+    " Easy mode for airline
+    unlet g:vimcord["reply_target_data"]
 
-  "TODO: might not be necessary
-  if exists(":AirlineRefresh")
-    AirlineRefresh!
-  else
-    " normal status line here
+    " Not-so-easy otherwise
+    if !exists(":AirlineRefresh")
+      for window in win_findbuf(g:vimcord["reply_buffer"])
+        call nvim_win_set_option(window, "statusline", "")
+      endfor
+    endif
   endif
-  redrawstatus
-  %delete _
-  echo ""
 
-  exe bufwinnr(a:target_buffer) .. "wincmd w"
-  setlocal nocursorline
+  wincmd p
+
+  " Delete the reply buffer contents
+  call deletebufline(g:vimcord["reply_buffer"], 1, "$")
+  echo ""
+endfunction
+
+function vimcord#create_reply_window(do_split)
+  if exists("g:vimcord.reply_buffer")
+    let buffer = g:vimcord["reply_buffer"]
+  else
+    let buffer = nvim_create_buf(v:false, v:true)
+    let g:vimcord["reply_buffer"] = buffer
+  endif
+
+  let reply_in_current_tab = len(
+        \   filter(
+        \     map(win_findbuf(buffer), "win_id2tabwin(v:val)[0]"),
+        \     "v:val ==# tabpagenr()"
+        \   )
+        \ )
+
+  let current_window = winnr()
+  if a:do_split && !reply_in_current_tab
+    " Go to the bottom window
+    let prev_window = current_window
+    while 1
+      wincmd j
+      if prev_window == winnr()
+        break
+      endif
+      prev_window = winnr()
+    endwhile
+
+    exe "below sbuffer " .. buffer
+    resize 2
+    setlocal winfixheight
+    setlocal filetype=discord_reply
+  endif
+
+  exe current_window .. "wincmd w"
+  return bufwinnr(buffer)
 endfunction

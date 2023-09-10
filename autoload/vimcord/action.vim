@@ -4,10 +4,15 @@ function! s:complete_ats(arglead, cmdline, cursorpos)
   if last_at !=# -1
     let atrange = a:cmdline[last_at+1:a:cursorpos]
     return map(
-          \ filter(copy(s:ats), { _, v -> stridx(v, atrange) == 0 }), 
+          \ filter(copy(s:ats), { _, v -> stridx(v, atrange) == 0 }),
           \ { _, v -> a:cmdline[:last_at] . v .  a:cmdline[last_at+2:]})
   endif
   return []
+endfunction
+
+function! s:complete_channel(arglead, cmdline, cursorpos)
+  " TODO: fuzzier
+  return filter(values(get(g:vimcord, "channel_names", {})), { _, x -> x =~ a:arglead })
 endfunction
 
 
@@ -22,28 +27,33 @@ endfunction
 function s:enter_reply_buffer(target_data, buffer_contents)
   " Set status by peeking into target data
   if exists("a:target_data.data.channel_id")
-    try
-      let channel_id = a:target_data["data"]["channel_id"]
-      let b:vimcord_target_channel = b:vimcord_channel_names[channel_id]
-
-      if exists(":AirlineRefresh")
-        AirlineRefresh!
-        redrawstatus
+    " TODO
+    if !exists(":AirlineRefresh")
+      " Not-so-easy otherwise
+      if !exists(":AirlineRefresh")
+        for window in win_findbuf(g:vimcord["reply_buffer"])
+          call nvim_win_set_option(window, "statusline", VimcordShowChannel())
+        endfor
       endif
-    catch
-    endtry
+    endif
   endif
 
-  let b:vimcord_reply_target_data = a:target_data
-  call nvim_buf_set_var(b:vimcord_reply_buffer, "vimcord_entering_buffer", 1)
+  let g:vimcord["reply_target_data"] = a:target_data
 
-  let target_window = bufwinnr(b:vimcord_reply_buffer)
+  " Enter reply buffer
+  call nvim_buf_set_var(g:vimcord["reply_buffer"], "vimcord_entering_buffer", 1)
+  let target_window = bufwinnr(g:vimcord["reply_buffer"])
+  if target_window == -1
+    " TODO: consider opening the reply window instead
+    return
+  endif
   exe target_window .. "wincmd w"
+
+  " Set buffer attributes
   if len(a:buffer_contents) !=# 0
     call setline(1, a:buffer_contents)
   endif
-
-  " TODO: set completion 
+  " TODO: set completion
   " TODO: remove completion onwinleave
   startinsert!
 endfunction
@@ -95,9 +105,11 @@ function vimcord#action#new_open_reply(is_reply) range
   let message_data = copy(b:discord_content[a:firstline - 1])
   let message_data["is_reply"] = a:is_reply
 
-  let prev_cursorline = &cursorline
   if a:is_reply
     if !exists("message_data.message_id")
+      echohl ErrorMsg
+      echo "Cannot reply to the selected message"
+      echohl None
       return
     endif
     setlocal cursorline
@@ -120,14 +132,10 @@ function s:new_edit_end(raw_data, message_data)
 endfunction
 
 function vimcord#action#new_write_channel() range
-  function! Completer(arglead, cmdline, cursorpos) closure
-    return filter(values(b:vimcord_channel_names), { _, x -> x =~ a:arglead })
-  endfunction
-
   " Get the channel name by name
   " TODO: investigate a better way of doing this (new split, etc)
   try
-    let channel_name = input("Channel: ", "", "customlist,Completer")
+    let channel_name = input("Channel: ", "", expand("customlist,<SID>complete_channel"))
   catch /Vim:Interrupt/
     return
   endtry
@@ -138,7 +146,7 @@ function vimcord#action#new_write_channel() range
 
   " Reverse-lookup for id
   let channel_id = ""
-  for [id, name] in items(b:vimcord_channel_names)
+  for [id, name] in items(get(g:vimcord, "channel_names", {}))
     if name ==# channel_name
       let channel_id = id
       break
@@ -148,6 +156,7 @@ function vimcord#action#new_write_channel() range
     call timer_start(0, { -> s:echo("Channel name not found", "ErrorMsg") })
     return
   endif
+  echo ""
 
   call s:enter_reply_buffer({
         \   "data": { "channel_id": channel_id },
