@@ -1,15 +1,3 @@
-let s:IMAGE_LINK_FORMATS = []
-let s:VIDEO_LINK_FORMATS = [
-      \ "youtube.com/watch",
-      \ "youtube.com/shorts",
-      \ "youtu.be/",
-      \ "tiktok.com/t/",
-      \ "tenor.com/view"
-      \ ]
-
-let s:IMAGE_MIMES = ["image/png", "image/jpeg"]
-let s:VIDEO_MIMES = ["image/gif", "video/.*"]
-
 function vimcord#link#open_media_under_cursor()
   let startline = line(".") - 1
   let message = b:discord_content[startline]
@@ -47,14 +35,14 @@ function vimcord#link#open_under_cursor(only_media)
 endfunction
 
 function s:open_media(link, use_default)
-  for image_link_re in s:IMAGE_LINK_FORMATS
+  for image_link_re in g:vimcord_image_link_formats
     if match(link, image_link_re) != -1
       call vimcord#link#open_image(a:link)
       return
     endif
   endfor
 
-  for video_link_re in s:VIDEO_LINK_FORMATS
+  for video_link_re in g:vimcord_video_link_formats
     if match(a:link, video_link_re) != -1
       call vimcord#link#open_video(a:link)
       return
@@ -66,14 +54,14 @@ function s:open_media(link, use_default)
         \ . " | cut -d' ' -f 2-"
         \ . " | tr -d '\\n'")
 
-  for image_type in s:IMAGE_MIMES
+  for image_type in g:vimcord_image_mimes
     if match(mimetype, image_type) != -1
       call vimcord#link#open_image(a:link)
       return
     endif
   endfor
 
-  for video_type in s:VIDEO_MIMES
+  for video_type in g:vimcord_video_mimes
     if match(mimetype, video_type) != -1
       call vimcord#link#open_video(a:link)
       return
@@ -90,6 +78,7 @@ function vimcord#link#open_most_recent(only_media)
   let prev = getcurpos()
 
   " TODO: search does not get last match, even with z flag with cursor at line end
+  normal $
   let try_search = search("https\\{0,1\\}:\\/\\/.\\+\\.[^` \\x1b]\\+", 'b')
   if try_search == 0
     call setpos(".", prev)

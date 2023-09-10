@@ -10,13 +10,17 @@ let g:vimcord_discord_password = get(g:, "vimcord_discord_password", "")
 let g:vimcord_dnd_filenames = get(g:, "vimcord_dnd_filenames", 1)
 let g:vimcord_dnd_paste_threshold = get(g:, "vimcord_dnd_paste_threshold", 8)
 
-" let g:vimcord_visited_link_color = get(g:, "vimcord_visited_link_color", "f4")
-"
-" g:VIMCORD_IMAGE_LINK_FORMATS = []
-" g:VIMCORD_VIDEO_LINK_FORMATS = ["youtube.com/watch", "youtube.com/shorts", "youtu.be/"]
-" g
-" g:VIMCORD_IMAGE_MIMES = ["image/png", "image/jpeg"]
-" g:VIMCORD_VIDEO_MIMES = ["image/gif", "video/.*"]
+" Link open settings
+let g:vimcord_image_link_formats = get(g:, "vimcord_image_link_formats", [])
+let g:vimcord_video_link_formats = get(g:, "vimcord_video_link_formats", [
+      \ "youtube.com/watch",
+      \ "youtube.com/shorts",
+      \ "youtu.be/",
+      \ "tiktok.com/t/",
+      \ "tenor.com/view"
+      \ ])
+let g:vimcord_image_mimes = get(g:, "vimcord_image_mimes", ["image/png", "image/jpeg"])
+let g:vimcord_video_mimes = get(g:, "vimcord_video_mimes", ["image/gif", "video/.*"])
 
 hi def link VimcordOGDefault LineNr
 hi def link VimcordOGSiteName VimcordOGDefault
@@ -24,8 +28,12 @@ hi def link VimcordOGTitle Title
 hi def link VimcordOGDescription Conceal
 hi def link VimcordAdditional NonText
 
+" Dictionary used for runtime data
 let g:vimcord = {}
 
+
+" Airline support
+" XXX: Investigate other status line plugins
 function VimcordShowScrolled()
   let cursor = nvim_win_get_cursor(0)
   let buf = nvim_win_get_buf(0)
@@ -49,6 +57,13 @@ if !exists("g:airline_filetype_overrides")
   let g:airline_filetype_overrides = {}
 endif
 
-" TODO: non-user-invasive
-let g:airline_filetype_overrides["discord_messages"] = ["Discord", "%{VimcordShowScrolled()}"]
-let g:airline_filetype_overrides["discord_reply"] = ["Message", "%{VimcordShowChannel()}"]
+let g:airline_filetype_overrides["discord_messages"] = get(
+      \ g:airline_filetype_overrides,
+      \ "discord_messages",
+      \ ["Discord", "%{VimcordShowScrolled()}"]
+      \ )
+let g:airline_filetype_overrides["discord_reply"] = get(
+      \ g:airline_filetype_overrides,
+      \ "discord_messages",
+      \ ["Message", "%{VimcordShowChannel()}"]
+      \ )

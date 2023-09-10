@@ -44,13 +44,11 @@ function vimcord#push_buffer_contents()
           \ "vimcord_uploaded_files")
   catch
   endtry
-  if trim(buffer_contents) !=# "" || len(filenames) > 0
-    call VimcordInvokeDiscordAction(
-          \ target_data["action"],
-          \ target_data["data"],
-          \ { "content": buffer_contents, "filenames": filenames }
-          \ )
-  endif
+  call VimcordInvokeDiscordAction(
+        \ target_data["action"],
+        \ target_data["data"],
+        \ { "content": buffer_contents, "filenames": filenames }
+        \ )
 
   call vimcord#forget_reply_contents()
   normal Gzb0
@@ -115,4 +113,11 @@ function vimcord#create_reply_window(do_split)
 
   exe current_window .. "wincmd w"
   return bufwinnr(buffer)
+endfunction
+
+function vimcord#close_all(buffer)
+  let windows = win_findbuf(a:buffer)
+  for window in windows
+    exe window .. "wincmd q"
+  endfor
 endfunction

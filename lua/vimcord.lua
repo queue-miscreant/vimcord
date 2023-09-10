@@ -5,11 +5,15 @@ local REPLY_NAMESPACE = vim.api.nvim_create_namespace("vimcord-replies")
 vimcord.LINKS_NAMESPACE = LINKS_NAMESPACE
 vimcord.REPLY_NAMESPACE = REPLY_NAMESPACE
 
-function vimcord.create_window(no_init)
+function vimcord.create_window(create_tab, ...)
+  local buf = ...
   -- get a new buffer
-  local buf = vim.api.nvim_create_buf(false, true)
+  if buf == nil then
+    buf = vim.api.nvim_create_buf(false, true)
+  end
+  -- decide which window to use
   local win
-  if not no_init then
+  if not create_tab then
     local current_buffer = vim.call("getbufinfo", vim.call("bufnr"))[1]
     if current_buffer.linecount == 1 and current_buffer.changed == 0 and vim.call("getline", 1) == "" then
       win = vim.api.nvim_get_current_win()
@@ -33,9 +37,7 @@ function vimcord.create_window(no_init)
   -- ditto for the reply window
   vim.api.nvim_buf_set_var(vim.g.vimcord.reply_buffer, "vimcord_target_buffer", buf)
 
-  -- -- return to the buffer above
-  -- vim.cmd("wincmd k")
-
+  vim.call("win_gotoid", win)
   return buf
 end
 

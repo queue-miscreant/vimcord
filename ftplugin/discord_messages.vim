@@ -47,16 +47,16 @@ endif
 
 " Plugin keys
 nnoremap <silent><buffer> <Plug>(vimcord_open_reply)
-      \ :<c-u>.call vimcord#action#new_open_reply(0)<cr>
+      \ :<c-u>.call vimcord#action#open_reply(0)<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_open_direct_reply)
-      \ :<c-u>.call vimcord#action#new_open_reply(1)<cr>
+      \ :<c-u>.call vimcord#action#open_reply(1)<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_delete_message)
       \ :<c-u>.call vimcord#action#delete()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_enter_channel)
-      \ :<c-u>call vimcord#action#new_write_channel()<cr>
+      \ :<c-u>call vimcord#action#open_channel()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_edit)
       \ :<c-u>.call vimcord#action#edit_start()<cr>

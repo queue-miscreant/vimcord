@@ -5,6 +5,7 @@ import pynvim
 import vimcord.discord as discord
 from vimcord.bridge import DiscordBridge
 from vimcord.discord_action import DiscordAction
+from vimcord.local_discord_server import kill_server as kill_discord_server
 
 log = logging.getLogger("vimcord")
 log.setLevel(logging.ERROR)
@@ -19,33 +20,31 @@ class Vimcord:
         self.socket_path = "/tmp/vimcord_server"
 
         nvim.loop.set_exception_handler(self.handle_exception)
-        self.discord_instance = None
         self.bridge = None
 
     @pynvim.command("Discord", nargs=0)
     def open_discord(self):
-        if self.discord_instance is not None:
-            #TODO: reopen discord buffer
+        if self.bridge is not None:
+            self.nvim.lua.vimcord.create_window(False, self.bridge._buffer)
             return
 
-        self.bridge = DiscordBridge(self)
-        # self.discord_instance = DiscordContainer(self)
+        self.open_bridge()
 
     @pynvim.command("KillDiscord", nargs=0)
     def kill_discord(self):
-        from vimcord.local_discord_server import kill_server
-        kill_server(self.socket_path)
+        kill_discord_server(self.socket_path)
+        self.nvim.api.call_function("vimcord#close_all", self.bridge._buffer)
 
-        # VERY TODO
-        self.nvim.api.command("q")
+        if self.bridge is not None:
+            async def reopen_bridge():
+                buffer = self.bridge._buffer
+                await self.bridge.close()
+                self.nvim.async_call(self.open_bridge, buffer)
 
-        if self.discord_instance is not None:
-            #TODO: reopen discord buffer
+            self.nvim.loop.create_task(reopen_bridge())
             return
 
-        #TODO: check if server running
-        # self.bridge = DiscordBridge(self)
-        # self.discord_instance = DiscordContainer(self)
+        self.nvim.async_call(self.open_bridge)
 
     @pynvim.function("VimcordInvokeDiscordAction", sync=True)
     def invoke_discord_action(self, args):
@@ -82,3 +81,9 @@ class Vimcord:
             4,
             {}
         )
+
+    def open_bridge(self, buffer=None):
+        self.bridge = DiscordBridge(self, buffer)
+
+    def notify(self, msg):
+        self.nvim.async_call(self.nvim.api.notify, msg, 4, {})

@@ -1,15 +1,7 @@
-function s:echo(text, ...)
-  if a:0 >= 2
-    execute "echohl " .. a:2
-  endif
-  echo a:text
-  echohl None
-endfunction
-
 function s:enter_reply_buffer(target_data, buffer_contents)
   " Set status by peeking into target data
   if exists("a:target_data.data.channel_id")
-    " TODO
+    " XXX: Interface with other status line plugins?
     if !exists(":AirlineRefresh")
       " Not-so-easy otherwise
       if !exists(":AirlineRefresh")
@@ -40,11 +32,33 @@ function s:enter_reply_buffer(target_data, buffer_contents)
   startinsert!
 endfunction
 
+function vimcord#action#open_reply(is_reply) range
+  if len(b:discord_content) <= a:firstline - 1
+    echoerr "No message under cursor"
+    return
+  endif
+
+  let message_data = copy(b:discord_content[a:firstline - 1])
+  let message_data["is_reply"] = a:is_reply
+
+  if a:is_reply
+    if !exists("message_data.message_id")
+      echoerr "Cannot reply to the selected message"
+      return
+    endif
+    setlocal cursorline
+  endif
+
+  call s:enter_reply_buffer({
+        \   "data": message_data,
+        \   "action": "message"
+        \ },
+        \ "")
+endfunction
+
 function vimcord#action#delete() range
   if len(b:discord_content) <= a:firstline - 1
-    echohl ErrorMsg
-    echo "No message under cursor"
-    echohl None
+    echoerr "No message under cursor"
     return
   endif
 
@@ -54,20 +68,26 @@ endfunction
 
 function vimcord#action#edit_start() range
   if len(b:discord_content) <= a:firstline - 1
-    echohl ErrorMsg
-    echo "No message under cursor"
-    echohl None
+    echoerr "No message under cursor"
     return
   endif
 
   let message_data = b:discord_content[a:firstline - 1]
-  call VimcordInvokeDiscordAction("tryedit", message_data)
+  call VimcordInvokeDiscordAction("try_edit", message_data)
 endfunction
 
-function vimcord#action#edit_end(raw_data, message_data)
-  call timer_start(
-        \ 0,
-        \ { -> s:new_edit_end(a:raw_data, a:message_data) }
+function s:do_edit(raw_data, message_data)
+  call s:enter_reply_buffer({
+          \   "data": a:message_data,
+          \   "action": "do_edit"
+          \ },
+          \ a:raw_data
+          \ )
+endfunction
+
+function vimcord#action#do_edit(raw_data, message_data)
+  call timer_start(0,
+        \ { -> s:do_edit(a:raw_data, a:message_data) }
         \ )
 endfunction
 
@@ -76,49 +96,12 @@ function vimcord#action#reconnect()
 endfunction
 
 
-function vimcord#action#new_open_reply(is_reply) range
-  if len(b:discord_content) <= a:firstline - 1
-    echohl ErrorMsg
-    echo "No message under cursor"
-    echohl None
-    return
-  endif
-
-  let message_data = copy(b:discord_content[a:firstline - 1])
-  let message_data["is_reply"] = a:is_reply
-
-  if a:is_reply
-    if !exists("message_data.message_id")
-      echohl ErrorMsg
-      echo "Cannot reply to the selected message"
-      echohl None
-      return
-    endif
-    setlocal cursorline
-  endif
-
-  call s:enter_reply_buffer({
-        \   "data": message_data,
-        \   "action": "new_reply"
-        \ },
-        \ "")
-endfunction
-
-function s:new_edit_end(raw_data, message_data)
-  call s:enter_reply_buffer({
-          \   "data": a:message_data,
-          \   "action": "new_edit"
-          \ },
-          \ a:raw_data
-          \ )
-endfunction
-
 function! s:complete_channel(arglead, cmdline, cursorpos)
-  " TODO: fuzzier
+  " TODO: fuzzier channel search
   return filter(values(get(g:vimcord, "channel_names", {})), { _, x -> x =~ a:arglead })
 endfunction
 
-function vimcord#action#new_write_channel() range
+function vimcord#action#open_channel() range
   " Get the channel name by name
   " TODO: investigate a better way of doing this (new split, etc)
   try
@@ -140,14 +123,14 @@ function vimcord#action#new_write_channel() range
     endif
   endfor
   if channel_id ==# ""
-    call timer_start(0, { -> s:echo("Channel name not found", "ErrorMsg") })
+    call timer_start(0, { -> execute("echoerr \"Channel name not found\"") })
     return
   endif
   echo ""
 
   call s:enter_reply_buffer({
         \   "data": { "channel_id": channel_id },
-        \   "action": "new_reply"
+        \   "action": "message"
         \ },
         \ "")
 endfunction

@@ -22,7 +22,7 @@ function s:complete_reply(findstart, base)
     return []
   endif
 
-  " TODO: technically we can just query the remote plugin here
+  " XXX: technically we can just query the remote plugin here
   let server_id = g:vimcord["reply_target_data"]["data"]["server_id"]
   let members = get(g:vimcord["server_members"], server_id, [])
 

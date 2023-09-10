@@ -20,11 +20,11 @@ class DiscordBridge:
     '''
     Manage global state related to things other than discord
     '''
-    def __init__(self, plugin):
+    def __init__(self, plugin, buffer=None):
         self.plugin = plugin
         self.discord_pipe = None
 
-        self._buffer = plugin.nvim.lua.vimcord.create_window()
+        self._buffer = buffer if buffer is not None else plugin.nvim.lua.vimcord.create_window()
 
         self._last_channel = None
         self.all_messages = {}
@@ -82,6 +82,9 @@ class DiscordBridge:
             else:
                 self.plugin.nvim.loop.create_task(self.on_ready())
 
+    async def close(self):
+        self.discord_pipe.transport.close()
+
     @property
     def all_members(self):
         return {server.id: [
@@ -101,7 +104,6 @@ class DiscordBridge:
         if isinstance(link, str):
             match = LINK_RE.match(link.replace("\n", "").replace("\x1b", ""))
             if not match:
-                # TODO: error
                 return
             link = [match.group(1)]
 
@@ -154,7 +156,6 @@ class DiscordBridge:
                 message.channel
             )]
 
-        # TODO: write prepended messages all at the same time
         def on_ready_callback():
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
@@ -271,7 +272,7 @@ class DiscordBridge:
             self._buffer,
             message.split("\n"),
             as_reply,
-            # TODO: this is immutable data. don't send it down again, because the buffer already has it
+            # this is immutable data, but it's (marginally) easier to send it again
             {
                 "message_id": post.id,
                 "channel_id": post.channel.id,
@@ -297,7 +298,7 @@ class DiscordBridge:
 
     async def on_dm_update(self, dm):
         '''DM discord user status change'''
-        #TODO
+        #TODO: direct message updates
 
     #---Check if a channel is muted---------------------------------------------
     def is_muted(self, server, channel):
