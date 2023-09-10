@@ -156,19 +156,17 @@ function vimcord#buffer#delete(message_id)
   " BUFFER NOT MODIFIABLE
 endfunction
 
-function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
-  let [start_line, end_line] = vimcord#buffer#lines_by_message_id(a:message_id, a:buffer)
-  let window = bufwinid(a:buffer)
+function vimcord#buffer#add_link_extmarks(message_id, extmarks)
+  let [start_line, end_line] = vimcord#buffer#lines_by_message_id(a:message_id)
+  let window = bufwinid(bufnr())
 
   if end_line + 1 > line("$", window)
-    echohl ErrorMsg
-    echom "Could not add links to message id " .. a:message_id .. "!"
-    echohl None
-    return
+    echoerr "Could not add links to message id " .. a:message_id .. "!"
+    return -1
   end
 
   " sometimes on_message and on_message_exit come very close together
-  call nvim_buf_clear_namespace(a:buffer, luaeval("vimcord.LINKS_NAMESPACE"), end_line, end_line + 1)
+  call nvim_buf_clear_namespace(0, luaeval("vimcord.LINKS_NAMESPACE"), end_line, end_line + 1)
 
   let bufindentopt = nvim_win_get_option(window, "breakindentopt")
   try
@@ -183,7 +181,7 @@ function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
         \ a:extmarks,
         \ { _, v -> insert(v, [repeat(" ", split_width), "None"], 0) }
         \ )
-  call nvim_buf_set_extmark(a:buffer,
+  call nvim_buf_set_extmark(0,
         \ luaeval("vimcord.LINKS_NAMESPACE"),
         \ end_line,
         \ 0,
@@ -193,13 +191,16 @@ function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
   if line(".") == line("$")
     normal zb
   end
+  return end_line
+endfunction
+
+function vimcord#buffer#add_media_content(line_number, media_content)
+  let b:discord_content[a:line_number]["media_content"] = a:media_content
 endfunction
 
 function vimcord#buffer#goto_reference() range
   if len(b:discord_content) <= a:firstline - 1
-    echohl ErrorMsg
-    echo "No message under cursor"
-    echohl None
+    echoerr "No message under cursor"
     return
   endif
 
@@ -207,24 +208,18 @@ function vimcord#buffer#goto_reference() range
   try
     let reply_id = message_data["reply_message_id"]
     if reply_id ==# v:null
-      echohl ErrorMsg
-      echo "Message has no reply"
-      echohl None
+      echoerr "Message has no reply"
       return
     endif
   catch
-    echohl ErrorMsg
-    echo "Message has no reply"
-    echohl None
+    echoerr "Message has no reply"
     return
   endtry
 
   let [start_line, end_line] = vimcord#buffer#lines_by_message_id(reply_id)
   if end_line == -1
     " TODO: try to prepend reference contents
-    echohl ErrorMsg
-    echo "Replied message not in buffer!"
-    echohl None
+    echoerr "Replied message not in buffer!"
     return
   endif
 

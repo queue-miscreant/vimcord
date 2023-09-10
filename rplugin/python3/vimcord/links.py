@@ -81,6 +81,15 @@ async def get_opengraph(link, *args, loop=None):
         return full[args[0]]        #never try 1-tuple assignment
     return [full[i] if i in full else None for i in args]    #tuple unpacking
 
+def unwrap_media(media_list):
+    ret = []
+    for i in media_list:
+        if isinstance(i, list):
+            ret.extend(i)
+        elif i is not None:
+            ret.append(i)
+    return ret
+
 class SpecialOpeners:
     OPENERS = {
         "twitter": re.compile(r"twitter\.com/.+/status"),
@@ -102,11 +111,13 @@ class SpecialOpeners:
         log.debug("Using default opener!")
         ret = []
 
-        site_name, title, description = await get_opengraph(
+        site_name, title, description, image, video = await get_opengraph(
             link,
             "site_name",
             "title",
-            "description"
+            "description",
+            "image",
+            "video"
         )
         if title is not None:
             if site_name is not None:
@@ -127,7 +138,8 @@ class SpecialOpeners:
                 description if isinstance(title, str) else title[0],
                 "VimcordOGDescription"
             ]])
-        return ret
+        # media content
+        return ret, unwrap_media([image, video])
 
     @staticmethod
     async def twitter(link):
@@ -162,15 +174,16 @@ class SpecialOpeners:
         if additional:
             disp.append([[additional, "VimcordAdditional"]])
 
-        return disp
+        return disp, unwrap_media([images, video])
 
     @staticmethod
     async def tenor(link):
-        return []
+        image, video = await get_opengraph(link, "image", "video")
+        return [], [unwrap_media([image, video])[0]]
 
     @staticmethod
     async def discord(link):
-        return []
+        return [], []
 
 async def get_link_content(link):
     try:

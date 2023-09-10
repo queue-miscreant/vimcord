@@ -65,24 +65,32 @@ nnoremap <silent><buffer> <Plug>(vimcord_goto_reference)
       \ :<c-u>.call vimcord#buffer#goto_reference()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_open_under_cursor)
-      \ :<c-u>call vimcord#link#open_under_cursor()<cr>
+      \ :<c-u>call vimcord#link#open_under_cursor(0)<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_open_last_link)
-      \ :<c-u>call vimcord#link#open_most_recent()<cr>
+      \ :<c-u>call vimcord#link#open_most_recent(0)<cr>
+
+nnoremap <silent><buffer> <Plug>(vimcord_open_media_under_cursor)
+      \ :<c-u>call vimcord#link#open_under_cursor(1)<cr>
+
+nnoremap <silent><buffer> <Plug>(vimcord_open_last_media)
+      \ :<c-u>call vimcord#link#open_most_recent(1)<cr>
 
 " Actual keymaps
-nmap <silent><buffer> i <Plug>(vimcord_open_reply)
-nmap <silent><buffer> I <Plug>(vimcord_open_direct_reply)
+nmap <buffer> i <Plug>(vimcord_open_reply)
+nmap <buffer> I <Plug>(vimcord_open_direct_reply)
 
-nmap <silent><buffer> X <Plug>(vimcord_delete_message)
-nmap <silent><buffer> D <Plug>(vimcord_delete_message)
+nmap <buffer> X <Plug>(vimcord_delete_message)
+nmap <buffer> D <Plug>(vimcord_delete_message)
 
-nmap <silent><buffer> A <Plug>(vimcord_enter_channel)
+nmap <buffer> A <Plug>(vimcord_enter_channel)
 
-nmap <silent><buffer> r <Plug>(vimcord_edit)
-nmap <silent><buffer> R <Plug>(vimcord_edit)
+nmap <buffer> r <Plug>(vimcord_edit)
+nmap <buffer> R <Plug>(vimcord_edit)
 
-nmap <silent><buffer> gx <Plug>(vimcord_open_under_cursor)
-nmap <silent><buffer> <c-g> <Plug>(vimcord_open_last_link)
+nmap <buffer> gx <Plug>(vimcord_open_under_cursor)
+nmap <buffer> <c-g> <Plug>(vimcord_open_last_link)
 
-nmap <silent><buffer> <enter> <Plug>(vimcord_goto_reference)
+nmap <buffer> <a-g> <Plug>(vimcord_open_last_media)
+
+nmap <buffer> <enter> <Plug>(vimcord_goto_reference)

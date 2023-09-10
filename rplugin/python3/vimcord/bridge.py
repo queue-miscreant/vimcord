@@ -129,17 +129,16 @@ class DiscordBridge:
         ])
         # flatten results
         # TODO: intercalate?
-        formatted_opengraph = [j for i in formatted_opengraph for j in i]
+        extmark_content = [j for i in formatted_opengraph for j in i[0]]
+        media_links = [j for i in formatted_opengraph for j in i[1]]
 
         if formatted_opengraph:
             self.plugin.nvim.async_call(
-                lambda x,y,z: self.plugin.nvim.api.call_function(
-                    "vimcord#buffer#add_link_extmarks",
-                    [x,y,z]
-                ),
+                lambda x,y,z,w: self.plugin.nvim.lua.vimcord.add_link_extmarks(x,y,z,w),
                 self._buffer,
                 message_id,
-                formatted_opengraph
+                extmark_content,
+                media_links
             )
 
     # DISCORD CALLBACKS --------------------------------------------------------

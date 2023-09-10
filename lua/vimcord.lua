@@ -129,3 +129,14 @@ function vimcord.recolor_visited_links(buffer, unvisited)
 
   vim.api.nvim_buf_set_option(buffer, "modifiable", false)
 end
+
+function vimcord.add_link_extmarks(buffer, message_id, extmark_content, media_links)
+  vim.api.nvim_buf_call(buffer, function()
+    -- extmarks
+    local line_number = vim.call("vimcord#buffer#add_link_extmarks", message_id, extmark_content)
+    -- media content
+    if line_number > 0 then
+      vim.call("vimcord#buffer#add_media_content", line_number, media_links)
+    end
+  end)
+end

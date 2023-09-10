@@ -67,11 +67,11 @@ Done:
 - reply @ completion
 - Globalize variables like reply buffer
 - temp buffer for messages
+- media links (videos, images) available from vim with alt-g (for image previews, etc)
 
 Todo:
 - sign column tricks for private messages (display user connection status?)
 - sorting buffer
-- media links (videos, images) available from vim with ctrl-g (for image previews, etc)
 
 - Syntax for discord markdown-like
 
