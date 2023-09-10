@@ -68,19 +68,19 @@ Done:
 - Globalize variables like reply buffer
 - temp buffer for messages
 - media links (videos, images) available from vim with alt-g (for image previews, etc)
+- image uploading
 
 Todo:
-- sign column tricks for private messages (display user connection status?)
 - sorting buffer
-
-- Syntax for discord markdown-like
-
-- Try using extmarks for usernames?
-- vertical tabs for stuff and things
 - show visited links with extmark highlights instead of syntax
+- variable cleanup, documentation
 
-- separate discord content out from "normal" reply window/message window pipeline
-- variable cleanup
+- Maybe soon
+    - sign column tricks for private messages (display user connection status?)
+    - tabs instead of newlines for message continuation?
+    - separate discord content out from "normal" reply window/message window pipeline
 
 - Future
     - Multiple buffers: main accumulator, but can open one for each channel
+    - Syntax for discord pseudo-markdown
+    - Try using extmarks for usernames?

@@ -2,9 +2,11 @@ import asyncio
 import os
 import os.path
 import logging
+import logging.handlers
+import sys
 import traceback
 
-from vimcord.pickle_pipe import PickleClientProtocol, PickleServerProtocol
+from vimcord.pickle_pipe import PickleServerProtocol
 from vimcord.local_discord_server.discord_client import VimcordClient
 
 log = logging.getLogger(__package__)
@@ -69,23 +71,63 @@ async def _start_server(pipe_file):
     client = VimcordClient()
     server = await asyncio.get_event_loop().create_unix_server(
         lambda: bind_discord_pickle(client),
-        path=pipe_file
+        path=os.path.join(pipe_file, "socket")
     )
 
     async with server:
         log.debug("Server created. Serving!")
         await server.serve_forever()
 
-def start_server(pipe_file):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+def start_server(pipe_file_dir):
+    '''Spawn a daemon process running start_server'''
+    # need to make the directory
+    if not os.path.isdir(pipe_file_dir):
+        # remove a file if it's there already
+        if os.path.exists(pipe_file_dir):
+            os.remove(pipe_file_dir)
+        os.mkdir(pipe_file_dir)
+
+    handler = logging.handlers.RotatingFileHandler(
+        filename=os.path.join(pipe_file_dir, "daemon.log"),
+        maxBytes=2**16,
+        backupCount=1
+    )
+    handler.setFormatter(
+        logging.Formatter("%(asctime)s " + logging.BASIC_FORMAT)
+    )
+    logging.basicConfig(handlers=[handler], force=True)
+
+    # dinner time
+    pid = os.fork()
+    if pid > 0:
+        return
+
+    # in first child
+    os.setsid()
+    pid = os.fork()
+    if pid > 0:
+        os._exit(0)
+
+    # in second child
+    loop = asyncio.get_event_loop()
     loop.set_exception_handler(_handle_exception)
 
+    with open(os.path.join(pipe_file_dir, "pid"), "w") as pid_file:
+        pid_file.write(str(os.getpid()))
+
     try:
-        loop.run_until_complete(_start_server(pipe_file))
+        loop.run_until_complete(_start_server(pipe_file_dir))
     except Exception as e:
         log.error("Daemon exiting: %s", e)
     finally:
-        if os.path.exists(pipe_file):
-            os.remove(pipe_file)
+        # remove the pid file
+        pid_file = os.path.join(pipe_file_dir, "pid")
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
         os._exit(0)
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        start_server(sys.argv[1])
+    else:
+        print("Could not start daemon!")

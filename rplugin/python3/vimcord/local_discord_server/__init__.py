@@ -1,26 +1,15 @@
 import asyncio
 import os
 import os.path
+import signal
 import shlex
+import subprocess
+import logging
 
 from vimcord.pickle_pipe import PickleClientProtocol
-from vimcord.local_discord_server.server import start_server
 
-#TODO: close all logs after forking
-def spawn_daemon(func, *args):
-    '''Spawn a daemon process running start_server'''
-    pid = os.fork()
-    if pid > 0:
-        return
-
-    # in first child
-    os.setsid()
-    pid = os.fork()
-    if pid > 0:
-        os._exit(0)
-
-    # in second child
-    func(*args)
+log = logging.getLogger(__name__)
+log.setLevel("DEBUG")
 
 async def connect_to_daemon(path, log):
     '''
@@ -30,10 +19,18 @@ async def connect_to_daemon(path, log):
     Returns 2-tuple of whether the daemon had to be started and the
     PickleClientProtocol for communicating with it.
     '''
-    server_running = os.path.exists(path) and os.system(f"lsof {shlex.quote(path)}") == 0
+    server_running = os.path.exists(path) and \
+            os.system(f"lsof {shlex.quote(os.path.join(path, 'socket'))}") == 0
     if not server_running:
         log.debug("Spawning daemon...")
-        spawn_daemon(start_server, path)
+        # add the plugin to the python path
+        vimcord_dir = os.path.dirname(__file__)
+        for _ in range(2):
+            vimcord_dir = os.path.dirname(vimcord_dir)
+        subprocess.Popen(
+            ["python", os.path.dirname(__file__), path],
+            env={"PYTHONPATH": vimcord_dir}
+        )
 
     log.debug("Connecting to daemon...")
     ret = None
@@ -41,16 +38,18 @@ async def connect_to_daemon(path, log):
         try:
             _, ret = await asyncio.get_running_loop().create_unix_connection(
                 PickleClientProtocol,
-                path=path
+                path=os.path.join(path, "socket")
             )
             break
-        except (FileNotFoundError, ConnectionRefusedError):
+        except (FileNotFoundError, ConnectionRefusedError, NotADirectoryError):
             await asyncio.sleep(1)
     log.debug("Connected to daemon process!")
 
     return not server_running, ret
 
-# TODO: save the pid in a file next to the socket
-# TODO: don't use sigkill
 def kill_server(path):
-    os.system(f"lsof {shlex.quote(path)} | tail -1 | cut -d' ' -f 2 | xargs kill -s SIGKILL")
+    with open(os.path.join(path, "pid")) as pid_file:
+        try:
+            os.kill(int(pid_file.read()), signal.SIGTERM)
+        except ValueError:
+            pass

@@ -80,7 +80,7 @@ function s:open_media(link, use_default)
     endif
   endfor
 
-  if use_default
+  if a:use_default
     exe "normal! \<Plug>NetrwBrowseX"
   endif
   echo ""
@@ -89,8 +89,8 @@ endfunction
 function vimcord#link#open_most_recent(only_media)
   let prev = getcurpos()
 
-  normal $
-  let try_search = search("https\\{0,1\\}:\\/\\/.\\+\\.[^` \\x1b]\\+", 'bz')
+  " TODO: search does not get last match, even with z flag with cursor at line end
+  let try_search = search("https\\{0,1\\}:\\/\\/.\\+\\.[^` \\x1b]\\+", 'b')
   if try_search == 0
     call setpos(".", prev)
     echo "No links found!"
