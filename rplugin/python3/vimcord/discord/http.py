@@ -294,7 +294,7 @@ class HTTPClient:
     def send_typing(self, channel_id):
         return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))
 
-    def send_file(self, channel_id, buffer, *, guild_id=None, filename=None, content=None, tts=False, embed=None):
+    def send_file(self, channel_id, buffer, *, guild_id=None, filename=None, content=None, tts=False, embed=None, reference=None):
         r = Route('POST', '/channels/{channel_id}/messages', channel_id=channel_id)
         form = aiohttp.FormData()
 
@@ -303,6 +303,8 @@ class HTTPClient:
             payload['content'] = content
         if embed:
             payload['embed'] = embed
+        if reference:
+            payload['message_reference'] = reference
 
         form.add_field('payload_json', utils.to_json(payload))
         form.add_field('file', buffer, filename=filename, content_type='application/octet-stream')

@@ -160,23 +160,20 @@ class DiscordAction:
         self.discord.task.connect()
 
     async def new_reply(self, message_data, content):
-        log.debug("%s %s", message_data, content)
-
-        message_id = message_data.get("message_id")
         channel_id = message_data.get("channel_id")
-        is_reply = message_data.get("is_reply", False)
-
-        reference = {
-            "channel_id": channel_id,
-            "message_id": message_id,
-        }
-
         channel = await self.discord.awaitable.get_channel(channel_id)
         if channel is None:
             return
 
+        is_reply = message_data.get("is_reply", False)
+        message_id = message_data.get("message_id")
+        reference = {
+            "channel_id": channel_id,
+            "message_id": message_id,
+        } if is_reply else None
+
         server = next(
-            filter(lambda x: x.id == message_data["server_id"], self.bridge._servers),
+            filter(lambda x: x.id == channel.server.id, self.bridge._servers),
             None
         ) if getattr(channel, "server", None) is not None else "DM"
         if server is None:
@@ -184,20 +181,36 @@ class DiscordAction:
         if server == "DM":
             server = None
 
-        content = parse_mentions(content, server)
-        self.discord.task.send_message(
-            channel,
-            content,
-            reference=(reference if is_reply else None)
-        )
+        message_content = parse_mentions(content.get("content", ""), server)
+        filenames = content.get("filenames", [])
+        if filenames:
+            self.discord.task.send_file(
+                channel,
+                fp=filenames[0],
+                content=message_content,
+                reference=reference
+            )
+            # warn about more than one file
+            if len(filenames) > 1:
+                self.plugin.nvim.async_call(
+                    self.plugin.nvim.notify,
+                    "Warning: multiple files uploaded, but only one sent",
+                    3,
+                    {}
+                )
+        else:
+            self.discord.task.send_message(
+                channel,
+                message_content,
+                reference=reference
+            )
 
     async def new_edit(self, message_data, content):
-        log.debug("%s %s", message_data, content)
-
         if (message := self.bridge.all_messages.get(message_data["message_id"])) is None:
             return
 
-        if content.strip() == "":
+        message_content = content.get("content", "")
+        if message_content.strip() == "":
             self.discord.task.delete_message(message)
             return
 
@@ -214,24 +227,5 @@ class DiscordAction:
         if server == "DM":
             server = None
 
-        content = parse_mentions(content, server)
-        self.discord.task.edit_message(message, content)
-
-    async def new_try_post_channel(self, message_data, content):
-        channel = await self.discord.awaitable.get_channel(message_data["channel_id"])
-        if channel is None:
-            log.debug("Could not find channel %s", message_data["channel_id"])
-            return
-
-        server = next(
-            filter(lambda x: x.id == channel.server.id, self.bridge._servers),
-            None
-        ) if getattr(channel, "server", None) is not None else "DM"
-        if server is None:
-            return
-        if server == "DM":
-            server = None
-
-        content = parse_mentions(content, server)
-        self.discord.task.send_message(channel, content)
-
+        message_content = parse_mentions(message_content, server)
+        self.discord.task.edit_message(message, message_content)

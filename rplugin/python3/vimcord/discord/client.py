@@ -508,7 +508,7 @@ class Client:
             self.loop.run_until_complete(self.start(*args, **kwargs))
         except KeyboardInterrupt:
             self.loop.run_until_complete(self.logout())
-            pending = asyncio.Task.all_tasks(loop=self.loop)
+            pending = asyncio.all_tasks(loop=self.loop)
             gathered = asyncio.gather(*pending, loop=self.loop)
             try:
                 gathered.cancel()
@@ -714,7 +714,7 @@ class Client:
         future = asyncio.Future(loop=self.loop)
         self._listeners.append((predicate, future, WaitForType.message))
         try:
-            message = await asyncio.wait_for(future, timeout, loop=self.loop)
+            message = await asyncio.wait_for(future, timeout)
         except asyncio.TimeoutError:
             message = None
         return message
@@ -823,7 +823,7 @@ class Client:
         future = asyncio.Future(loop=self.loop)
         self._listeners.append((predicate, future, WaitForType.reaction))
         try:
-            return (await asyncio.wait_for(future, timeout, loop=self.loop))
+            return (await asyncio.wait_for(future, timeout))
         except asyncio.TimeoutError:
             return None
 
@@ -859,13 +859,6 @@ class Client:
         setattr(self, coro.__name__, coro)
         log.info('{0.__name__} has successfully been registered as an event'.format(coro))
         return coro
-
-    def async_event(self, coro):
-        """A shorthand decorator for ``asyncio.coroutine`` + :meth:`event`."""
-        if not asyncio.iscoroutinefunction(coro):
-            coro = asyncio.coroutine(coro)
-
-        return self.event(coro)
 
     # Message sending/management
 
@@ -1156,7 +1149,7 @@ class Client:
         channel_id, guild_id = await self._resolve_destination(destination)
         await self.http.send_typing(channel_id)
 
-    async def send_file(self, destination, fp, *, filename=None, content=None, tts=False):
+    async def send_file(self, destination, fp, *, filename=None, content=None, tts=False, reference=None):
         """|coro|
 
         Sends a message to the destination given with the file given.
@@ -1214,7 +1207,7 @@ class Client:
 
         content = str(content) if content is not None else None
         data = await self.http.send_file(channel_id, buffer, guild_id=guild_id,
-                                              filename=filename, content=content, tts=tts)
+                                              filename=filename, content=content, tts=tts, reference=reference)
         channel = self.get_channel(data.get('channel_id'))
         message = self.connection._create_message(channel=channel, **data)
         return message
@@ -3124,8 +3117,8 @@ class Client:
         await self.ws.voice_state(server.id, channel.id)
 
         try:
-            session_id_data = await asyncio.wait_for(session_id_future, timeout=10.0, loop=self.loop)
-            data = await asyncio.wait_for(voice_data_future, timeout=10.0, loop=self.loop)
+            session_id_data = await asyncio.wait_for(session_id_future, timeout=10.0)
+            data = await asyncio.wait_for(voice_data_future, timeout=10.0)
         except asyncio.TimeoutError as e:
             await self.ws.voice_state(server.id, None, self_mute=True)
             raise e

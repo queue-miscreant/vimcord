@@ -147,7 +147,7 @@ function vimcord#action#new_write_channel() range
 
   call s:enter_reply_buffer({
         \   "data": { "channel_id": channel_id },
-        \   "action": "new_try_post_channel"
+        \   "action": "new_reply"
         \ },
         \ "")
 endfunction

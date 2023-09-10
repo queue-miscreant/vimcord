@@ -195,7 +195,6 @@ function vimcord#buffer#add_link_extmarks(buffer, message_id, extmarks)
   end
 endfunction
 
-" TODO: still broken
 function vimcord#buffer#goto_reference() range
   if len(b:discord_content) <= a:firstline - 1
     echohl ErrorMsg
@@ -207,6 +206,12 @@ function vimcord#buffer#goto_reference() range
   let message_data = b:discord_content[a:firstline - 1]
   try
     let reply_id = message_data["reply_message_id"]
+    if reply_id ==# v:null
+      echohl ErrorMsg
+      echo "Message has no reply"
+      echohl None
+      return
+    endif
   catch
     echohl ErrorMsg
     echo "Message has no reply"

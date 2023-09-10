@@ -73,8 +73,56 @@ function s:window_return()
   wincmd p
 endfunction
 
+let s:last_move_size = -1
+let s:last_cursor_position = [0,0,0,0]
+" Callback for cursor moved. Keep track of large movements in insert mode
+" For some reason, InsertCharPre isn't good enough to capture multiple bytes,
+" so this hack is needed
+function s:update_cursor(position)
+  let s:last_move_size = a:position[2] - s:last_cursor_position[2]
+  " Disregard if we're on another line now or inserted too little
+  " If this is the first line, then we're technically at line 0
+  if ((s:last_cursor_position[1] + s:last_cursor_position[1] ==# 0) !=# a:position[1])
+        \ || s:last_move_size < g:vimcord_dnd_paste_threshold
+    let s:last_move_size = -1
+  endif
+  let s:last_cursor_position = a:position
+endfunction
+
+function s:add_drag_and_drop(position)
+  if s:last_move_size < 0
+    return
+  endif
+
+  " Get the (trimmed) inserted content
+  let insert_content = getline(".")[a:position[2] - s:last_move_size:a:position[2]]
+  let filename = trim(insert_content)
+
+  " Konsole inserts filenames with spaces using single quotes.
+  " I assume there are ones out there which use double quotes
+  if filename[0] ==# filename[-1:] && (filename[0] ==# "'" || filename[0] ==# "\"")
+    let filename = filename[1:-2]
+  endif
+  echom filename
+  if filereadable(filename)
+    " remove the filename we just inserted
+    exe "normal \"_d" .. s:last_move_size .. "h"
+
+    if !exists("b:vimcord_uploaded_files")
+      let b:vimcord_uploaded_files = []
+    endif
+    call add(b:vimcord_uploaded_files, filename)
+    echo "Appended file: " .. filename
+  endif
+endfunction
+
 augroup discord_reply
   autocmd WinLeave <buffer> call vimcord#forget_reply_contents()
   autocmd WinClosed <buffer> call timer_start(0, { -> vimcord#create_reply_window(1) })
   autocmd WinEnter <buffer> call timer_start(0, { -> s:window_return() })
+
+  if g:vimcord_dnd_filenames
+    autocmd TextChangedI <buffer> call timer_start(0, { -> s:add_drag_and_drop(getpos("."))})
+    autocmd CursorMovedI <buffer> call timer_start(0, { -> s:update_cursor(getpos("."))})
+  endif
 augroup end

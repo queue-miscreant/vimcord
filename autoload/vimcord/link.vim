@@ -3,6 +3,7 @@ let s:VIDEO_LINK_FORMATS = [
       \ "youtube.com/watch",
       \ "youtube.com/shorts",
       \ "youtu.be/",
+      \ "tiktok.com/t/",
       \ "tenor.com/view"
       \ ]
 

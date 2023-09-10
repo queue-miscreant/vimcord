@@ -62,7 +62,7 @@ nnoremap <silent><buffer> <Plug>(vimcord_edit)
       \ :<c-u>.call vimcord#action#edit_start()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_goto_reference)
-      \ :<c-u>.call vimcord#action#goto_reference()<cr>
+      \ :<c-u>.call vimcord#buffer#goto_reference()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_open_under_cursor)
       \ :<c-u>call vimcord#link#open_under_cursor()<cr>

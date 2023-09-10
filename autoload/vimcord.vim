@@ -37,15 +37,23 @@ function vimcord#push_buffer_contents()
         \ 1,
         \ line("$")
         \ ), "\n")
-  if trim(buffer_contents) !=# ""
+
+  let filenames = []
+  try
+    let filenames = nvim_buf_get_var(g:vimcord["reply_buffer"],
+          \ "vimcord_uploaded_files")
+  catch
+  endtry
+  if trim(buffer_contents) !=# "" || len(filenames) > 0
     call VimcordInvokeDiscordAction(
           \ target_data["action"],
           \ target_data["data"],
-          \ buffer_contents
+          \ { "content": buffer_contents, "filenames": filenames }
           \ )
   endif
 
   call vimcord#forget_reply_contents()
+  normal Gzb0
 endfunction
 
 function vimcord#forget_reply_contents()
@@ -63,6 +71,9 @@ function vimcord#forget_reply_contents()
   endif
 
   wincmd p
+
+  " Clear the uploaded files
+  call nvim_buf_set_var(g:vimcord["reply_buffer"], "vimcord_uploaded_files", [])
 
   " Delete the reply buffer contents
   call deletebufline(g:vimcord["reply_buffer"], 1, "$")

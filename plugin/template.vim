@@ -7,6 +7,8 @@ lua require("vimcord")
 
 let g:vimcord_discord_username = get(g:, "vimcord_discord_username", "")
 let g:vimcord_discord_password = get(g:, "vimcord_discord_password", "")
+let g:vimcord_dnd_filenames = get(g:, "vimcord_dnd_filenames", 1)
+let g:vimcord_dnd_paste_threshold = get(g:, "vimcord_dnd_paste_threshold", 8)
 
 " let g:vimcord_visited_link_color = get(g:, "vimcord_visited_link_color", "f4")
 "
