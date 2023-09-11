@@ -69,7 +69,10 @@ function s:redo_reply_extmarks(reply_id, new_contents)
         \ )
 
   for [id, row, column] in reply_extmarks
-    if b:discord_content[row]["reply_message_id"] == a:reply_id
+    if !exists("b:discord_content[row]")
+      " extmark still around, but not at an available line
+      call nvim_buf_del_extmark(0, luaeval("vimcord.REPLY_NAMESPACE"), id)
+    elseif b:discord_content[row]["reply_message_id"] == a:reply_id
       call nvim_buf_set_extmark(
             \ 0,
             \ luaeval("vimcord.REPLY_NAMESPACE"),

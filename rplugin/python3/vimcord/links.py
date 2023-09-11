@@ -65,7 +65,9 @@ async def get_opengraph(link, *args, loop=None):
             if not prop or not prop.startswith("og:"):
                 continue
             prop = prop[3:]
-            content = meta_tag["content"]
+            content = meta_tag.get("content")
+            if content is None:
+                continue
             prev = full.get(prop)
             if prev is None:
                 full[prop] = content

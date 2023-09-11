@@ -83,8 +83,9 @@ function s:update_cursor(position)
   let s:last_move_size = a:position[2] - s:last_cursor_position[2]
   " Disregard if we're on another line now or inserted too little
   " If this is the first line, then we're technically at line 0
-  if ((s:last_cursor_position[1] + s:last_cursor_position[1] ==# 0) !=# a:position[1])
-        \ || s:last_move_size < g:vimcord_dnd_paste_threshold
+  let last_cursor_line = s:last_cursor_position[1] + (s:last_cursor_position[1] ==# 0)
+  if last_cursor_line !=# a:position[1] ||
+        \ s:last_move_size < g:vimcord_dnd_paste_threshold
     let s:last_move_size = -1
   endif
   let s:last_cursor_position = a:position
@@ -96,7 +97,8 @@ function s:add_drag_and_drop(position)
   endif
 
   " Get the (trimmed) inserted content
-  let insert_content = getline(".")[a:position[2] - s:last_move_size:a:position[2]]
+  let start_position = max([0, a:position[2] - s:last_move_size - 1])
+  let insert_content = getline(".")[start_position:a:position[2]]
   let filename = trim(insert_content)
 
   " Konsole inserts filenames with spaces using single quotes.

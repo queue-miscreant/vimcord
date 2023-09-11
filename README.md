@@ -190,6 +190,7 @@ TODOs
 -----
 
 - Planned soon
+    - Show mentions
     - Option to disable link previews
     - Log in by means other than variables
     - Sorting the main buffer based on message channel id
