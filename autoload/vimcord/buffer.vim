@@ -26,7 +26,7 @@ function vimcord#buffer#lines_by_message_id(message_id, ...)
   return [start_line, end_line]
 endfunction
 
-function vimcord#buffer#append(indent_width, discord_message, reply, discord_extra)
+function vimcord#buffer#append(indent_width, discord_message, reply, discord_extra, add_spaces)
   " BUFFER MODIFIABLE
   setlocal modifiable
 
@@ -34,7 +34,7 @@ function vimcord#buffer#append(indent_width, discord_message, reply, discord_ext
   let new_line_count = len(a:discord_message)
 
   let new_lines = map(a:discord_message, { k, v ->
-        \ (repeat(" ", k == 0 ? 1 : a:indent_width)) . v
+        \ (repeat(" ", k == 0 ? a:add_spaces : a:indent_width - 1)) . v
         \ })
 
   call setline(line_number + 1, new_lines)
@@ -103,7 +103,7 @@ function vimcord#buffer#edit(indent_width, discord_message, as_reply, discord_ex
   " then set the rest of the line to the new contents
   let new_line_count = len(a:discord_message)
   let new_lines = map(a:discord_message, { k, v ->
-        \ (repeat(" ", k == 0 ? 1 : a:indent_width)) . v
+        \ (repeat(" ", k == 0 ? 1 : a:indent_width - 1)) . v
         \ })
   call setline(start_line + 1, new_lines)
 

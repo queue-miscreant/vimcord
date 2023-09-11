@@ -199,6 +199,17 @@ HIGHLIGHTS                                              *vimcord-highlights*
 
 The following highlight groups are intended to be open to the end user:
 
+                                                        *vimcord-discord-highlights*
+
+discordServerName               Used for displaying server (guild) names
+
+discordChannelName              Used for displaying channel names
+
+discordReply                    Used for the main content of replies.
+                                The username color is kept the same.
+
+                                                        *vimcord-og-highlights*
+
 VimcordOGDefault                The default highlight group used for unknown
                                 OpenGraph contents in link previews.
 

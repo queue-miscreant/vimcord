@@ -41,7 +41,7 @@ function vimcord.create_window(create_tab, ...)
   return buf
 end
 
-function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra)
+function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra, add_spaces)
   local windows = vim.call("win_findbuf", buffer)
   local bufindentopt = vim.api.nvim_win_get_option(windows[1], "breakindentopt")
   local split_width = tonumber(
@@ -49,7 +49,7 @@ function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra)
   ) or 0
 
   vim.api.nvim_buf_call(buffer, function()
-    vim.call("vimcord#buffer#append", split_width, discord_message, reply, discord_extra)
+    vim.call("vimcord#buffer#append", split_width, discord_message, reply, discord_extra, add_spaces)
   end)
 
   for i = 1, #windows do
@@ -69,10 +69,8 @@ function vimcord.append_many_to_buffer(buffer, discord_messages)
   local line_count = 0
   vim.api.nvim_buf_call(buffer, function()
     for _, message in pairs(discord_messages) do
-      local contents = message["contents"]
-      local reply = message["reply"] or {}
-      local discord_extra = message["extra"]
-      vim.call("vimcord#buffer#append", split_width, contents, reply, discord_extra)
+      vim.call("vimcord#buffer#append", buffer, unpack(message))
+      local contents = message[1]
       line_count = line_count + #contents
     end
   end)

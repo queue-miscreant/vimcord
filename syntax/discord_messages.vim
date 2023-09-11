@@ -3,10 +3,13 @@ if exists("b:current_syntax")
 endif
 
 " Separators
-syn region discordChannel start="^ ---" end="$"
+syn region discordChannel start="^[^ ]" end="$" contains=discordServerName,discordChannelName
+syn match discordServerName "^\([^#]\+\)#" containedin=discordChannel
+syn match discordChannelName "\([^#]\+\)$" containedin=discordChannel
 
 hi def link discordNone None
-hi def link discordChannel LineNr
+hi def link discordServerName StatusLine
+hi def link discordChannelName StatusLineNC
 hi def link discordReply LineNr
 
 " Code shamelessly taken from AnsiEscPlugin
@@ -49,20 +52,24 @@ function s:to_hex(color_number)
 endfunction
 
 syn region discordColorDefault matchgroup=None
-      \  start="\%x1B " end=" \%x1B" concealends
+      \  start="\%x1B " end=" \%x1B" concealends contained
 syn region discordColorDefault matchgroup=None
-      \  start="\%x1B100 " end=" \%x1B" concealends
+      \  start="\%x1B100 " end=" \%x1B" concealends contained
 hi def link discordColorDefault None
 
 " Dynamic color escapes based on (for example) post contents
 for i in range(256)
   exe "syn region discordColor" . i . " matchgroup=None"
         \ . " start=\"\\%x1B" . printf("%02x", i) . " \" end=\" \\%x1B\""
-        \ . " concealends"
+        \ . " concealends contained "
   exe "hi default discordColor" . i . " guifg=" . s:to_hex(i) . " ctermfg=" . i
 endfor
 
 " Extra
 syn region discordVisitedLink matchgroup=None
-      \  start="\%x1BVL " end=" \%x1B" concealends
+      \  start="\%x1BVL " end=" \%x1B" concealends contained
 hi def link discordVisitedLink discordColor244
+
+" Messages starting with a space are "true" messages
+exe "syn region discordMessage start=+^ + end=+$+ contains=discordColorDefault,discordVisitedLink,"
+      \ .. join(map(range(256), "'discordColor' .. v:val"), ",")

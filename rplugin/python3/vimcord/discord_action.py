@@ -11,7 +11,7 @@ def parse_mentions(text, server):
     '''Convert all literal @s into semantic ones for discord'''
     if server is None:
         return text
-    for i in server.members:
+    for i in sorted(server.members, key=lambda x: len(str(x)), reverse=True):
         text = text.replace(f"@{i.display_name}", i.mention)
     return text
 
