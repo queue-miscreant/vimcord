@@ -80,7 +80,7 @@ def format_channel(channel, width=80, raw=False):
         if raw:
             return str(channel)
         channel_name = ellipsize(str(channel), width - 1)
-        return f"#{channel_name} "
+        return f"#{channel_name}"
     # want both server and channel names
     server_name = ellipsize(str(channel.server), width // 2)
     channel_name = ellipsize(str(channel), width - width // 2 - 3)
