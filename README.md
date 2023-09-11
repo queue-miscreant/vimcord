@@ -191,12 +191,14 @@ TODOs
 
 - Planned soon
     - Show mentions
+    - Make `<c-g>` and `<a-g>` better
     - Option to disable link previews
     - Log in by means other than variables
     - Sorting the main buffer based on message channel id
     - Show visited links with extmark highlights instead of in-document colors using syntax
 
 - Unplanned - maybe soon?
+    - Occasionally, the discord connection returns a 443 or similar error silently
     - Display user connection status (sign column tricks?)
     - Separate multiple lines better (`linebreak` appears to allow horizontal tabs to do this?)
     - Separate discord content out from "normal" reply window/message window pipeline

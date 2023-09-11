@@ -3,7 +3,7 @@ if exists("b:current_syntax")
 endif
 
 " Separators
-syn region discordChannel start="^[^ ]" end="$" contains=discordServerName,discordChannelName
+syn match discordChannel "^[^ ].\+$" contains=discordServerName,discordChannelName
 syn match discordServerName "^\([^#]\+\)#" containedin=discordChannel
 syn match discordChannelName "\([^#]\+\)$" containedin=discordChannel
 
