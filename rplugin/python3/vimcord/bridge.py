@@ -127,7 +127,7 @@ class DiscordBridge:
         function to add them.
         '''
         formatted_opengraph = await asyncio.gather(*[
-            get_link_content(link) for link in links
+            get_link_content(link, notify_func=self.plugin.notify) for link in links
         ])
         # flatten results
         # TODO: intercalate?
