@@ -12,9 +12,22 @@ from vimcord.local_discord_server.discord_client import VimcordClient
 log = logging.getLogger(__package__)
 log.setLevel("ERROR")
 
+CREATED_PROTOCOLS = []
+
 def _handle_exception(loop, context):
     formatted = traceback.format_exception(context["exception"])
     log.error("Error occurred:\n%s", "".join(formatted))
+    # broadcast the error to clients (i.e., so they can tell it to reconnect)
+    deletions = []
+    for i, protocol in enumerate(CREATED_PROTOCOLS):
+        if protocol.transport.is_closing():
+            deletions.append(i)
+            continue
+        if (exc := context.get("exception")) is not None:
+            protocol.write_error(exc)
+
+    for deletion in reversed(deletions):
+        del CREATED_PROTOCOLS[deletion]
 
 DISCORD_EVENT_NAMES = [
     "call",
@@ -65,6 +78,7 @@ def bind_discord_pickle(discord_client):
         handler.__name__ = discord_event_name
         discord_client.event(handler)
 
+    CREATED_PROTOCOLS.append(protocol)
     return protocol
 
 async def _start_server(pipe_file):

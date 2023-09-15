@@ -59,6 +59,7 @@ class DiscordBridge:
         self.discord_pipe.event("message_edit", self.on_message_edit)
         self.discord_pipe.event("message_delete", self.on_message_delete)
         self.discord_pipe.event("dm_update", self.on_dm_update)
+        self.discord_pipe.event("error", self.on_error)
 
         await self.preamble()
 
@@ -300,6 +301,10 @@ class DiscordBridge:
     async def on_dm_update(self, dm):
         '''DM discord user status change'''
         #TODO: direct message updates
+
+    async def on_error(self, exc):
+        '''On error received from server'''
+        self.plugin.notify(f"Server encountered error: {exc}")
 
     #---Check if a channel is muted---------------------------------------------
     def is_muted(self, server, channel):
