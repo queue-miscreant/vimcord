@@ -41,15 +41,11 @@ function vimcord.create_window(create_tab, ...)
   return buf
 end
 
-function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra, add_spaces)
+function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra)
   local windows = vim.call("win_findbuf", buffer)
-  local bufindentopt = vim.api.nvim_win_get_option(windows[1], "breakindentopt")
-  local split_width = tonumber(
-    vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]
-  ) or 0
 
   vim.api.nvim_buf_call(buffer, function()
-    vim.call("vimcord#buffer#append", split_width, discord_message, reply, discord_extra, add_spaces)
+    vim.call("vimcord#buffer#append", discord_message, reply, discord_extra)
   end)
 
   for i = 1, #windows do
@@ -61,15 +57,11 @@ end
 
 function vimcord.append_many_to_buffer(buffer, discord_messages)
   local windows = vim.call("win_findbuf", buffer)
-  local bufindentopt = vim.api.nvim_win_get_option(windows[1], "breakindentopt")
-  local split_width = tonumber(
-    vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]
-  ) or 0
 
   local line_count = 0
   vim.api.nvim_buf_call(buffer, function()
     for _, message in pairs(discord_messages) do
-      vim.call("vimcord#buffer#append", buffer, unpack(message))
+      vim.call("vimcord#buffer#append", unpack(message))
       local contents = message[1]
       line_count = line_count + #contents
     end
@@ -84,13 +76,9 @@ end
 
 function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_extra)
   local windows = vim.call("win_findbuf", buffer)
-  local bufindentopt = vim.api.nvim_win_get_option(windows[1], "breakindentopt")
-  local split_width = tonumber(
-    vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]
-  ) or 0
 
   local added_lines = vim.api.nvim_buf_call(buffer, function()
-    return vim.call("vimcord#buffer#edit", split_width, discord_message, as_reply, discord_extra)
+    return vim.call("vimcord#buffer#edit", discord_message, as_reply, discord_extra)
   end)
 
   for i = 1, #windows do

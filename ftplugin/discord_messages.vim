@@ -5,7 +5,6 @@ setlocal nonumber
 setlocal wrap
 setlocal linebreak
 setlocal breakindent
-setlocal breakindentopt=shift:4
 
 " Remove escape characters used for coloring member names
 function s:strip_colors(event)

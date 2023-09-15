@@ -26,7 +26,7 @@ function vimcord#buffer#lines_by_message_id(message_id, ...)
   return [start_line, end_line]
 endfunction
 
-function vimcord#buffer#append(indent_width, discord_message, reply, discord_extra, add_spaces)
+function vimcord#buffer#append(discord_message, reply, discord_extra)
   " BUFFER MODIFIABLE
   setlocal modifiable
 
@@ -34,7 +34,7 @@ function vimcord#buffer#append(indent_width, discord_message, reply, discord_ext
   let new_line_count = len(a:discord_message)
 
   let new_lines = map(a:discord_message, { k, v ->
-        \ (repeat(" ", k == 0 ? a:add_spaces : (a:indent_width - 1))) . v
+        \ (repeat(" ", k == 0 ? 0 : g:vimcord_shift_width)) . v
         \ })
 
   call setline(line_number + 1, new_lines)
@@ -87,7 +87,7 @@ function s:redo_reply_extmarks(reply_id, new_contents)
   endfor
 endfunction
 
-function vimcord#buffer#edit(indent_width, discord_message, as_reply, discord_extra)
+function vimcord#buffer#edit(discord_message, as_reply, discord_extra)
   let [start_line, end_line] =
         \ vimcord#buffer#lines_by_message_id(a:discord_extra["message_id"])
   if start_line > end_line
@@ -106,7 +106,7 @@ function vimcord#buffer#edit(indent_width, discord_message, as_reply, discord_ex
   " then set the rest of the line to the new contents
   let new_line_count = len(a:discord_message)
   let new_lines = map(a:discord_message, { k, v ->
-        \ (repeat(" ", k == 0 ? 1 : (a:indent_width - 1))) . v
+        \ (repeat(" ", k == 0 ? 0 : g:vimcord_shift_width)) . v
         \ })
   call setline(start_line + 1, new_lines)
 
@@ -171,18 +171,9 @@ function vimcord#buffer#add_link_extmarks(message_id, extmarks)
   " sometimes on_message and on_message_exit come very close together
   call nvim_buf_clear_namespace(0, luaeval("vimcord.LINKS_NAMESPACE"), end_line, end_line + 1)
 
-  let bufindentopt = nvim_win_get_option(window, "breakindentopt")
-  try
-    let split_width = str2nr(
-          \ split(split(bufindentopt, "shift:", 1)[1], ",")[0]
-          \ )
-  catch
-    let split_width = 0
-  endtry
-
   let virt_lines = map(
         \ a:extmarks,
-        \ { _, v -> insert(v, [repeat(" ", split_width), "None"], 0) }
+        \ { _, v -> insert(v, [repeat(" ", g:vimcord_shift_width), "None"], 0) }
         \ )
   call nvim_buf_set_extmark(0,
         \ luaeval("vimcord.LINKS_NAMESPACE"),

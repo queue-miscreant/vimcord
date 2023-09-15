@@ -6,6 +6,7 @@ from vimcord.links import LINK_RE
 log = logging.getLogger(__name__)
 log.setLevel("DEBUG")
 
+INDENT_SIZE = 3
 MAX_REPLY_WIDTH = 100
 
 def syntax_color(color, text, literal=False):
@@ -48,7 +49,7 @@ def clean_post(bridge, post: discord.Message, no_reply=False):
     if not no_reply and post.referenced_message is not None:
         reply = extmark_post(bridge, post.referenced_message)
 
-    return links, reply, author + ": " + content
+    return links, reply, f" {author}:\n" + content.strip()
 
 def extmark_post(bridge, post: discord.Message):
     embeds = [i["url"] for i in post.attachments]
@@ -70,7 +71,7 @@ def extmark_post(bridge, post: discord.Message):
 
     return [
         [post.author.display_name, f"discordColor{color_number}"],
-        [f": {content}", "discordReply"]
+        [f": {content.strip()}", "discordReply"]
     ]
 
 def format_channel(channel, width=80, raw=False):
