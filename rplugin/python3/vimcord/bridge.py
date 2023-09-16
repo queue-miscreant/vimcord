@@ -160,7 +160,7 @@ class DiscordBridge:
         def on_ready_callback():
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
-                "vimcord#buffer#add_extra_data",
+                "vimcord#discord#add_extra_data",
                 [
                     { i.id: format_channel(i, raw=True)
                       for i in self.unmuted_channels },
