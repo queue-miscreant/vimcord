@@ -196,6 +196,7 @@ TODOs
     - Log in by means other than variables
     - Sorting the main buffer based on message channel id
     - Show visited links with extmark highlights instead of in-document colors using syntax
+    - Closing reply buffer just hides it
 
 - Unplanned - maybe soon?
     - Occasionally, the discord connection returns a 443 or similar error silently

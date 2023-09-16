@@ -31,17 +31,22 @@ function s:enter_reply_buffer(target_data, buffer_contents)
 endfunction
 
 function vimcord#action#open_reply(is_reply) range
-  if len(b:discord_content) <= a:firstline - 1
-    echoerr "No message under cursor"
+  if len(b:vimcord_lines_to_messages) <= a:firstline - 1
+    echohl ErrorMsg
+    echo "No message under cursor"
+    echohl None
     return
   endif
 
-  let message_data = copy(b:discord_content[a:firstline - 1])
+  let message_number = b:vimcord_lines_to_messages[a:firstline - 1]
+  let message_data = copy(b:vimcord_messages_to_extra_data[message_number])
   let message_data["is_reply"] = a:is_reply
 
   if a:is_reply
     if !exists("message_data.message_id")
-      echoerr "Cannot reply to the selected message"
+      echohl ErrorMsg
+      echo "Cannot reply to the selected message"
+      echohl None
       return
     endif
     setlocal cursorline
@@ -55,22 +60,28 @@ function vimcord#action#open_reply(is_reply) range
 endfunction
 
 function vimcord#action#delete() range
-  if len(b:discord_content) <= a:firstline - 1
-    echoerr "No message under cursor"
+  if len(b:vimcord_lines_to_messages) <= a:firstline - 1
+    echohl ErrorMsg
+    echo "No message under cursor"
+    echohl None
     return
   endif
 
-  let message_data = b:discord_content[a:firstline - 1]
+  let message_number = b:vimcord_lines_to_messages[a:firstline - 1]
+  let message_data = copy(b:vimcord_messages_to_extra_data[message_number])
   call VimcordInvokeDiscordAction("delete", message_data)
 endfunction
 
 function vimcord#action#edit_start() range
-  if len(b:discord_content) <= a:firstline - 1
-    echoerr "No message under cursor"
+  if len(b:vimcord_lines_to_messages) <= a:firstline - 1
+    echohl ErrorMsg
+    echo "No message under cursor"
+    echohl None
     return
   endif
 
-  let message_data = b:discord_content[a:firstline - 1]
+  let message_number = b:vimcord_lines_to_messages[a:firstline - 1]
+  let message_data = copy(b:vimcord_messages_to_extra_data[message_number])
   call VimcordInvokeDiscordAction("try_edit", message_data)
 endfunction
 
@@ -99,6 +110,16 @@ function! s:complete_channel(arglead, cmdline, cursorpos)
   return filter(values(get(g:vimcord, "channel_names", {})), { _, x -> x =~ a:arglead })
 endfunction
 
+function s:echo(message, ...)
+  if a:0 >= 1
+    exe "echohl " .. a:1
+  else
+    echohl ErrorMsg
+  endif
+  echo a:message
+  echohl None
+endfunction
+
 function vimcord#action#open_channel() range
   " Get the channel name by name
   " TODO: investigate a better way of doing this (new split, etc)
@@ -121,7 +142,7 @@ function vimcord#action#open_channel() range
     endif
   endfor
   if channel_id ==# ""
-    call timer_start(0, { -> execute("echoerr \"Channel name not found\"") })
+    call timer_start(0, { -> s:echo("Channel name not found") })
     return
   endif
   echo ""

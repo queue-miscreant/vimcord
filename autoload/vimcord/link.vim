@@ -1,6 +1,7 @@
 function vimcord#link#open_media_under_cursor()
   let startline = line(".") - 1
-  let message = b:discord_content[startline]
+  let message_number = b:vimcord_lines_to_messages[startline]
+  let message = b:vimcord_messages_to_extra_data[message_number]
 
   if !exists("message.message_id")
     return
@@ -9,11 +10,12 @@ function vimcord#link#open_media_under_cursor()
   let last_message = message
   while 1
     let startline += 1
-    if !exists("b:discord_content[startline]") ||
-          \ get(b:discord_content[startline], "message_id", "") !=# message["message_id"]
+    let this_number = b:vimcord_lines_to_messages[startline]
+    if !exists("b:vimcord_lines_to_messages[startline]") ||
+          \ get(get(b:vimcord_messages_to_extra_data, this_number, {}), "message_id", "") !=# message["message_id"]
       break
     endif
-    let last_message = b:discord_content[startline]
+    let last_message = b:vimcord_messages_to_extra_data[this_number]
   endwhile
 
   if exists("last_message.media_content")

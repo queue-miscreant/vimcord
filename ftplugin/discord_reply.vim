@@ -1,4 +1,7 @@
 setlocal nonumber
+setlocal wrap
+setlocal linebreak
+setlocal breakindent
 " setlocal completefunc="s:complete_reply"
 exe "setlocal completefunc=" .. expand("<SID>") .. "complete_reply"
 

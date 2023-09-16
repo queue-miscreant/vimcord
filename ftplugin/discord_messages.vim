@@ -40,7 +40,7 @@ augroup discord_messages
   autocmd WinEnter <buffer> setlocal nocursorline
 augroup end
 
-if !(exists("b:discord_content"))
+if !(exists("b:vimcord_lines_to_messages") && exists("b:vimcord_messages_to_extra_data"))
   finish
 endif
 
