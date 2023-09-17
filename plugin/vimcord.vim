@@ -69,3 +69,41 @@ let g:airline_filetype_overrides["discord_reply"] = get(
       \ "discord_reply",
       \ ["Message", "%{VimcordShowChannel()}"]
       \ )
+
+function! VimcordLogin()
+  try
+    let g:vimcord_discord_username = input("Discord username: ")
+    let g:vimcord_discord_password = inputsecret("Discord password: ")
+  catch
+    " Ctrl-c given
+    try
+      unlet g:vimcord_discord_username
+      unlet g:vimcord_discord_password
+    catch
+    endtry
+
+    echohl ErrorMsg
+    echo "Cancelled login"
+    echohl None
+
+    return
+  endtry
+
+  if g:vimcord_discord_username ==# "" || g:vimcord_discord_password ==# ""
+    unlet g:vimcord_discord_username
+    unlet g:vimcord_discord_password
+
+    echohl ErrorMsg
+    echo "Empty credentials given. Aborting login."
+    echohl None
+
+    return
+  endif
+
+  Discord!
+
+  unlet g:vimcord_discord_username
+  unlet g:vimcord_discord_password
+endfunction
+
+command! -nargs=0 DiscordLogin call timer_start(0, { -> VimcordLogin() })

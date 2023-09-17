@@ -63,8 +63,13 @@ Commands
 
 ### :Discord
 
-The main command. This opens up a pair of windows: the Discord buffer and the
-reply buffer.
+The main command. Attempts to use credentials in global variables
+(`g:vimcord_discord_username`, `g:vimcord_discord_password`) to log in. If
+these variables are empty or not set, the user is prompted for them before
+initiating the connection; afterward, the values are destroyed.
+
+When a connection is made, two windows will be opened: one containing a
+Discord buffer and a buffer for composing messages (the "reply buffer").
 
 The Discord buffer contains all messages received from unmuted channels from
 Discord. At this point, there isn't a way to show the contents of muted
@@ -77,7 +82,7 @@ place the cursor within its window in order to type a message.
 
 ### :KillDiscord
 
-Kills the Discord daemon and attempt to reopen a connection. At the moment, this
+Kills the Discord daemon and closes Discord windows. At the moment, this
 isn't supported very well. Use this at your own caution.
 
 
@@ -123,7 +128,10 @@ Configuration
 
 Login credentials for discord. It goes without saying that exposing these
 in your `.vimrc` is dangerous and inadvisable.
-Work is planned for making this better.
+
+Rather than plain text, these may also be specified in base64 by prefacing the
+base64 string with `b64:`. This only makes it harder to read at a glance, and
+does not confer any security benefits.
 
 
 ### `g:vimcord_dnd_paste_threshold`
@@ -177,16 +185,16 @@ Default value supports links from YouTube and TikTok.
 
 ### `g:vimcord_image_mimes`
 
-List of MIME types which, when matched by the HEAD of a link, will be opened
-as an image when using `gx` or `ctrl-g`.
+List of MIME types which, when matched by the Content-Type header (acquired
+by HEAD) of a link, will be opened as an image when using `gx` or `ctrl-g`.
 
 Default value is `["image/png", "image/jpeg"]`
 
 
 ### `g:vimcord_video_mimes`
 
-List of MIME types which, when matched by the HEAD of a link, will be opened
-as a video when using `gx` or `ctrl-g`.
+List of MIME types which, when matched by the Content-Type header (acquired
+by HEAD) of a link, will be opened as a video when using `gx` or `ctrl-g`.
 
 Default value is `["image/gif", "video/.*"]`
 
@@ -204,7 +212,6 @@ TODOs
     - Show mentions
     - Make `<c-g>` and `<a-g>` better
     - Option to disable link previews
-    - Log in by means other than variables
     - Sorting the main buffer based on message channel id
     - Show visited links with extmark highlights instead of in-document colors using syntax
     - Closing reply buffer just hides it

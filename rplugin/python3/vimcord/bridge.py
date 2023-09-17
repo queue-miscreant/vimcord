@@ -16,6 +16,8 @@ def is_current(timestr):
         return True
     return time.mktime(time.strptime(timestr.split(".")[0], "%Y-%m-%dT%H:%M:%S")) > time.time()
 
+# TODO: keeping track of buffers is not necessary here;
+#       it can be done with other runtime variables in g:vimcord
 class DiscordBridge:
     '''
     Manage global state related to things other than discord

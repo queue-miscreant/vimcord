@@ -1,3 +1,4 @@
+import base64
 import logging
 import traceback
 
@@ -10,44 +11,61 @@ from vimcord.local_discord_server import kill_server as kill_discord_server
 log = logging.getLogger("vimcord")
 log.setLevel(logging.ERROR)
 
+def unb64(string, initial="b64:"):
+    '''If a string begins with the provided `initial` contents, decode the rest as base64'''
+    if string.startswith(initial):
+        string = base64.b64decode(string[len(initial):].encode()).decode()
+    return string
+
 @pynvim.plugin
 class Vimcord:
     def __init__(self, nvim):
         self.nvim = nvim
-        self.discord_username = nvim.api.get_var("vimcord_discord_username")
-        self.discord_password = nvim.api.get_var("vimcord_discord_password")
-
         self.socket_path = "/tmp/vimcord_server"
 
         nvim.loop.set_exception_handler(self.handle_exception)
         self.bridge = None
 
-    @pynvim.command("Discord", nargs=0)
-    def open_discord(self):
+    @pynvim.command("Discord", nargs=0, bang=True, sync=True)
+    def open_discord(self, bang):
+        '''
+        Get Discord credentials from global variables and attempt to log in.
+        If either the username or password is unset or empty, the user will be prompted.
+        '''
+        try:
+            discord_username = self.nvim.api.get_var("vimcord_discord_username")
+            discord_password = self.nvim.api.get_var("vimcord_discord_password")
+        except pynvim.NvimError:
+            discord_username = ""
+            discord_password = ""
+
+        # get login from user input
+        if not bang:
+            if not (discord_username and discord_password):
+                self.nvim.api.command("DiscordLogin")
+                return
+
+            # base64 decode, if possible
+            discord_username = unb64(discord_username)
+            discord_password = unb64(discord_password)
+
         if self.bridge is not None:
             self.nvim.lua.vimcord.create_window(False, self.bridge._buffer)
             return
 
-        self.open_bridge()
+        self.bridge = DiscordBridge(self)
 
     @pynvim.command("KillDiscord", nargs=0)
     def kill_discord(self):
+        '''Close the daemon, all Discord windows, and the socket connection to the daemon.'''
         kill_discord_server(self.socket_path)
         self.nvim.api.call_function("vimcord#close_all", self.bridge._buffer)
-
-        if self.bridge is not None:
-            async def reopen_bridge():
-                buffer = self.bridge._buffer
-                await self.bridge.close()
-                self.nvim.async_call(self.open_bridge, buffer)
-
-            self.nvim.loop.create_task(reopen_bridge())
-            return
-
-        self.nvim.async_call(self.open_bridge)
+        self.bridge.close()
+        self.bridge = None
 
     @pynvim.function("VimcordInvokeDiscordAction", sync=True)
     def invoke_discord_action(self, args):
+        '''Receive data from vim and call out to DiscordAction, should a suitable one exist'''
         if self.bridge is None or self.bridge.discord_pipe is None:
             self.nvim.api.notify(
                 "No running discord detected",
@@ -70,20 +88,13 @@ class Vimcord:
     def handle_exception(self, loop, context):
         if (message := context.get("exception")) is None:
             log.debug("%s", message)
+            self.notify(message, level=0)
             return
         formatted = traceback.format_exception(context["exception"])
-        log.error("Error occurred:\n%s", "".join(formatted))
+        error_text = f"Error occurred:\n{''.join(formatted)}"
 
-        self.nvim.async_call(
-            self.nvim.api.notify,
-            # "An unknown error occurred!",
-            "Error occurred:\n%s" % "".join(formatted),
-            4,
-            {}
-        )
-
-    def open_bridge(self, buffer=None):
-        self.bridge = DiscordBridge(self, buffer)
+        log.error(error_text)
+        self.notify(error_text)
 
     def notify(self, msg, level=4):
         self.nvim.async_call(self.nvim.api.notify, msg, level, {})
