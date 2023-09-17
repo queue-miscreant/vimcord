@@ -44,6 +44,19 @@ if !(exists("b:vimcord_lines_to_messages") && exists("b:vimcord_messages_to_extr
   finish
 endif
 
+function! s:scroll_message(direction)
+  let message_number = b:vimcord_lines_to_messages[line(".") - 1]
+  let last_line = -1
+  while 1
+    let new_message_number = get(b:vimcord_lines_to_messages, line(".") - 1, -1)
+    if new_message_number !=# message_number || line(".") ==# last_line
+      break
+    endif
+    let last_line = line(".")
+    exe "normal " .. a:direction
+  endwhile
+endfunction
+
 " Plugin keys
 nnoremap <silent><buffer> <Plug>(vimcord_open_reply)
       \ :<c-u>.call vimcord#action#open_reply(0)<cr>
@@ -75,6 +88,12 @@ nnoremap <silent><buffer> <Plug>(vimcord_open_media_under_cursor)
 nnoremap <silent><buffer> <Plug>(vimcord_open_last_media)
       \ :<c-u>call vimcord#link#open_most_recent(1)<cr>
 
+nnoremap <silent><buffer> <Plug>(vimcord_message_above)
+      \ :<c-u>call <SID>scroll_message("k")<cr>
+
+nnoremap <silent><buffer> <Plug>(vimcord_message_below)
+      \ :<c-u>call <SID>scroll_message("j")<cr>
+
 " Actual keymaps
 nmap <buffer> i <Plug>(vimcord_open_reply)
 nmap <buffer> I <Plug>(vimcord_open_direct_reply)
@@ -86,6 +105,9 @@ nmap <buffer> A <Plug>(vimcord_enter_channel)
 
 nmap <buffer> r <Plug>(vimcord_edit)
 nmap <buffer> R <Plug>(vimcord_edit)
+
+nmap <buffer> K <Plug>(vimcord_message_above)
+nmap <buffer> J <Plug>(vimcord_message_below)
 
 nmap <buffer> gx <Plug>(vimcord_open_under_cursor)
 nmap <buffer> <c-g> <Plug>(vimcord_open_last_link)

@@ -93,6 +93,8 @@ Keys
 | `r`, `R`  | `r`eplace message | Attempts to retrieve the message under the cursor for editing and enters the reply buffer. Does not work if you are not the author of the post.
 | `X`, `D`  | `d`elete message  | Attempts to delete the message under the cursor. These are shifted characters to unintentional deletions.
 | `A`       | `a`ppend message  | Prompts the user for a channel name, which can be completed by tabbing. Enters the reply buffer, targeting the channel if it exists.
+| `K`       | `k` message       | Go to the message above the current one
+| `J`       | `j` message       | Go to the message below the current one
 | `gx`      | `G`o lin`ks`      | Attempts to open the word under the cursor as a link. Uses the currently-set link openers (see configuration)
 | `<c-g>`   | (See above)       | Attempt to open the first link before the current cursor position using the same method as `gx`.
 | `<a-g>`   | (See above)       | Attempt to open the first link before the current cursor position. Additional media content set on the message is opened, instead of the actual link.

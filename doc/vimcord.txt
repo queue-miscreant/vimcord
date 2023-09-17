@@ -66,6 +66,10 @@ r, R    `r`eplace message       Attempts to retrieve the message under the
                               Does not work if you are not the author of the
                               post.
 
+K       `k` message             Go to the message above the current one
+
+J       `j` message             Go to the message below the current one
+
 X, D    `d`elete message        Attempts to delete the message under the cursor.
                               These are shifted characters to unintentional
                               deletions.
