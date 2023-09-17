@@ -1,8 +1,30 @@
 " buffer.vim
+"
 " Functions relating to appending messages as groups of lines on a buffer, with
 " associated "extra" data.
+" Functions here are loosely with discord data (such as UIDs)
 "
-" Functions here should loosely coupled with discord-related uids themselves
+" A "message" buffer contains two variables on it:
+"       b:vimcord_messages_to_extra_data, which maps message numbers to extra
+"               message contents (i.e., non-Vim message information)
+"       b:vimcord_lines_to_messages, which maps line numbers onto message
+"               numbers (i.e., index in the messages_to_extra_data)
+"
+" Both of these are Lists. Both buffer contents and these variables need to be
+" maintained in a consistent state.
+
+" Create a text buffer with initial data for interacting with later
+" Return the buffer number
+function vimcord#buffer#create_buffer()
+  let buf = nvim_create_buf(v:false, v:true)
+
+  " set options for new buffer/window
+  call nvim_buf_set_var(buf, "vimcord_lines_to_messages", [])
+  call nvim_buf_set_var(buf, "vimcord_messages_to_extra_data", [])
+  call nvim_buf_set_option(buf, "modifiable", v:false)
+
+  return buf
+endfunction
 
 " Return the first line and last lines that match the message id given
 " Lines returned are 0-indexed!
@@ -44,8 +66,6 @@ function vimcord#buffer#append(discord_message, reply, discord_extra)
 
   call setline(line_number + 1, new_lines)
   call extend(b:vimcord_lines_to_messages, repeat([message_number], new_line_count))
-
-  echom line_number new_line_count line("$", bufwinid(bufnr()))
 
   if len(a:reply) > 0
     call insert(a:reply, [" ╓─", "discordReply"], 0)
@@ -174,7 +194,7 @@ function vimcord#buffer#add_link_extmarks(message_number, extmarks)
   end
 
   " sometimes on_message and on_message_exit come very close together
-  call nvim_buf_clear_namespace(0, luaeval("vimcord.LINKS_NAMESPACE"), end_line, end_line + 1)
+  call nvim_buf_clear_namespace(0, luaeval("vimcord.LINKS_NAMESPACE"), start_line, end_line + 1)
 
   let virt_lines = map(
         \ a:extmarks,
@@ -193,7 +213,6 @@ function vimcord#buffer#add_link_extmarks(message_number, extmarks)
   return end_line
 endfunction
 
-function vimcord#buffer#add_media_content(line_number, media_content)
-  let message_number = b:vimcord_lines_to_messages[a:line_number - 1]
-  let b:vimcord_messages_to_extra_data[message_number]["media_content"] = a:media_content
+function vimcord#buffer#add_media_content(message_number, media_content)
+  let b:vimcord_messages_to_extra_data[a:message_number]["media_content"] = a:media_content
 endfunction

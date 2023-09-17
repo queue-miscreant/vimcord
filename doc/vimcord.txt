@@ -54,7 +54,7 @@ DISCORD MESSAGE BUFFER                                  *vimcord-discord-message
 
 The following key bindings are available from the Discord message buffer.
 
-i       `i`nsert message.       Enters the reply buffer, targeting the channel
+i       `i`nsert message        Enters the reply buffer, targeting the channel
                               of the message currently under the cursor.
 
 I       `I`nsert reply          Like `i`, but marks the message under the
@@ -137,7 +137,6 @@ in your `.vimrc` is dangerous and inadvisable.
 
 Work is planned for making this better.
 
-
 g:vimcord_dnd_paste_threshold                           *g:vimcord_dnd_paste_threshold*
 
 The minimum number of inserted characters for which the reply buffer can
@@ -146,6 +145,15 @@ When less than or equal to zero, disables, events in the reply buffer which
 check for pastes are not bound.
 
 Default value is 8 (enabled).
+
+
+g:vimcord_shift_width                                   *g:vimcord_shift_width*
+
+The number of spaces inserted before message contents. The author of a message
+is displayed on a separate line, with only one space prior. Runtime changes
+will not be applied to old messages.
+
+Default value is 4. Minimum value is 1.
 
 
 g:vimcord_image_opener                                  *g:vimcord_image_opener*

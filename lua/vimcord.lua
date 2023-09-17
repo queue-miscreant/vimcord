@@ -9,7 +9,7 @@ function vimcord.create_window(create_tab, ...)
   local buf = ...
   -- get a new buffer
   if buf == nil then
-    buf = vim.api.nvim_create_buf(false, true)
+    buf = vim.call("vimcord#buffer#create_buffer")
   end
   -- decide which window to use
   local win
@@ -27,16 +27,10 @@ function vimcord.create_window(create_tab, ...)
   end
   -- cursor is currently in the new window
   vim.api.nvim_win_set_buf(win, buf)
-
-  local reply_window = vim.call("vimcord#create_reply_window", true)
-  -- set options for new buffer/window
-  vim.api.nvim_buf_set_var(buf, "vimcord_lines_to_messages", {})
-  vim.api.nvim_buf_set_var(buf, "vimcord_messages_to_extra_data", {})
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  -- hold off until we've got a window to set the filetype
   vim.api.nvim_buf_set_option(buf, "filetype", "discord_messages")
 
-  -- ditto for the reply window
-  vim.api.nvim_buf_set_var(vim.g.vimcord.reply_buffer, "vimcord_target_buffer", buf)
+  local reply_window = vim.call("vimcord#create_reply_window", true)
 
   vim.call("win_gotoid", win)
   return buf
@@ -157,7 +151,7 @@ function vimcord.add_link_extmarks(buffer, discord_message_id, extmark_content, 
       local line_number = vim.call("vimcord#buffer#add_link_extmarks", message_number, extmark_content)
       -- media content
       if line_number > 0 then
-        vim.call("vimcord#buffer#add_media_content", line_number, media_links)
+        vim.call("vimcord#buffer#add_media_content", message_number, media_links)
       end
     end)
   end)

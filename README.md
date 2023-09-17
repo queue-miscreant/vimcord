@@ -134,6 +134,15 @@ check for pastes are not bound.
 Default value is 8 (enabled).
 
 
+### `g:vimcord_shift_width`
+
+The number of spaces inserted before message contents. The author of a message
+is displayed on a separate line, with only one space prior. Runtime changes
+will not be applied to old messages.
+
+Default value is 4. Minimum value is 1.
+
+
 ### `g:vimcord_image_opener`
 
 Command name or path to executable to use to open image links.
@@ -202,7 +211,7 @@ TODOs
     - Occasionally, the discord connection returns a 443 or similar error silently
     - Display user connection status (sign column tricks?)
     - Separate multiple lines better (`linebreak` appears to allow horizontal tabs to do this?)
-    - Separate discord content out from "normal" reply window/message window pipeline
+    - Separate discord content out from "normal" reply window/message window pipeline (partially done)
 
 - Future work
     - Per-channel buffers: keep main accumulator, but extras can be opened (especially for muted channels)

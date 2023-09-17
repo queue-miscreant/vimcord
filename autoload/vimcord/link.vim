@@ -68,6 +68,16 @@ endfunction
 function vimcord#link#open_most_recent(only_media)
   let prev = getcurpos()
 
+  " scroll to the last line of the message
+  let current_message = b:vimcord_lines_to_messages[line(".") - 1]
+  while 1
+    let next_message = get(b:vimcord_lines_to_messages, line("."), -1)
+    if next_message !=# current_message
+      break
+    endif
+    normal! j
+  endwhile
+
   " TODO: search does not get last match, even with z flag with cursor at line end
   normal $
   let try_search = search("https\\{0,1\\}:\\/\\/.\\+\\.[^` \\x1b]\\+", 'b')
