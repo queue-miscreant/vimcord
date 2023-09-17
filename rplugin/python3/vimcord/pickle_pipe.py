@@ -105,6 +105,10 @@ class PickleServerProtocol(asyncio.Protocol):
                 log.error("Could not pickle %s!", args)
                 self.transport.write(encode_for_pipe(base + [PicklePipeException()]))
 
+    def write_error(self, exc):
+        '''Write an exception to the pipe, fewer questions asked'''
+        self.write(["event", "error"], [exc])
+
     async def _reply(self, unpickled):
         request_id, verb, data = unpickled
         args, kwargs = data

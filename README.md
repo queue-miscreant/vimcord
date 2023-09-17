@@ -93,6 +93,8 @@ Keys
 | `r`, `R`  | `r`eplace message | Attempts to retrieve the message under the cursor for editing and enters the reply buffer. Does not work if you are not the author of the post.
 | `X`, `D`  | `d`elete message  | Attempts to delete the message under the cursor. These are shifted characters to unintentional deletions.
 | `A`       | `a`ppend message  | Prompts the user for a channel name, which can be completed by tabbing. Enters the reply buffer, targeting the channel if it exists.
+| `K`       | `k` message       | Go to the message above the current one
+| `J`       | `j` message       | Go to the message below the current one
 | `gx`      | `G`o lin`ks`      | Attempts to open the word under the cursor as a link. Uses the currently-set link openers (see configuration)
 | `<c-g>`   | (See above)       | Attempt to open the first link before the current cursor position using the same method as `gx`.
 | `<a-g>`   | (See above)       | Attempt to open the first link before the current cursor position. Additional media content set on the message is opened, instead of the actual link.
@@ -132,6 +134,15 @@ When less than or equal to zero, disables, events in the reply buffer which
 check for pastes are not bound.
 
 Default value is 8 (enabled).
+
+
+### `g:vimcord_shift_width`
+
+The number of spaces inserted before message contents. The author of a message
+is displayed on a separate line, with only one space prior. Runtime changes
+will not be applied to old messages.
+
+Default value is 4. Minimum value is 1.
 
 
 ### `g:vimcord_image_opener`
@@ -196,12 +207,13 @@ TODOs
     - Log in by means other than variables
     - Sorting the main buffer based on message channel id
     - Show visited links with extmark highlights instead of in-document colors using syntax
+    - Closing reply buffer just hides it
 
 - Unplanned - maybe soon?
     - Occasionally, the discord connection returns a 443 or similar error silently
     - Display user connection status (sign column tricks?)
     - Separate multiple lines better (`linebreak` appears to allow horizontal tabs to do this?)
-    - Separate discord content out from "normal" reply window/message window pipeline
+    - Separate discord content out from "normal" reply window/message window pipeline (partially done)
 
 - Future work
     - Per-channel buffers: keep main accumulator, but extras can be opened (especially for muted channels)

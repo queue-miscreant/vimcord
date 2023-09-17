@@ -9,7 +9,7 @@ function vimcord.create_window(create_tab, ...)
   local buf = ...
   -- get a new buffer
   if buf == nil then
-    buf = vim.api.nvim_create_buf(false, true)
+    buf = vim.call("vimcord#buffer#create_buffer")
   end
   -- decide which window to use
   local win
@@ -27,116 +27,132 @@ function vimcord.create_window(create_tab, ...)
   end
   -- cursor is currently in the new window
   vim.api.nvim_win_set_buf(win, buf)
-
-  local reply_window = vim.call("vimcord#create_reply_window", true)
-  -- set options for new buffer/window
-  vim.api.nvim_buf_set_var(buf, "discord_content", {})
-  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  -- hold off until we've got a window to set the filetype
   vim.api.nvim_buf_set_option(buf, "filetype", "discord_messages")
 
-  -- ditto for the reply window
-  vim.api.nvim_buf_set_var(vim.g.vimcord.reply_buffer, "vimcord_target_buffer", buf)
+  local reply_window = vim.call("vimcord#create_reply_window", true)
 
   vim.call("win_gotoid", win)
   return buf
 end
 
-function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra, add_spaces)
-  local windows = vim.call("win_findbuf", buffer)
-  local bufindentopt = vim.api.nvim_win_get_option(windows[1], "breakindentopt")
-  local split_width = tonumber(
-    vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]
-  ) or 0
-
-  vim.api.nvim_buf_call(buffer, function()
-    vim.call("vimcord#buffer#append", split_width, discord_message, reply, discord_extra, add_spaces)
-  end)
-
-  for i = 1, #windows do
-    vim.api.nvim_win_call(windows[i], function()
-      vim.call("vimcord#scroll_cursor", #discord_message)
+-- all
+function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra)
+  vim.schedule(function()
+    vim.api.nvim_buf_call(buffer, function()
+      vim.call("vimcord#buffer#append", discord_message, reply, discord_extra)
     end)
-  end
+
+    local windows = vim.call("win_findbuf", buffer)
+    for i = 1, #windows do
+      vim.api.nvim_win_call(windows[i], function()
+        vim.call("vimcord#scroll_cursor", #discord_message)
+      end)
+    end
+  end)
 end
 
 function vimcord.append_many_to_buffer(buffer, discord_messages)
-  local windows = vim.call("win_findbuf", buffer)
-  local bufindentopt = vim.api.nvim_win_get_option(windows[1], "breakindentopt")
-  local split_width = tonumber(
-    vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]
-  ) or 0
+  vim.schedule(function()
+    local line_count = 0
+    vim.api.nvim_buf_call(buffer, function()
+      for _, message in pairs(discord_messages) do
+        vim.call("vimcord#buffer#append", unpack(message))
+        local contents = message[1]
+        line_count = line_count + #contents
+      end
+    end)
 
-  local line_count = 0
-  vim.api.nvim_buf_call(buffer, function()
-    for _, message in pairs(discord_messages) do
-      vim.call("vimcord#buffer#append", buffer, unpack(message))
-      local contents = message[1]
-      line_count = line_count + #contents
+    local windows = vim.call("win_findbuf", buffer)
+    for i = 1, #windows do
+      vim.api.nvim_win_call(windows[i], function()
+        vim.call("vimcord#scroll_cursor", line_count - 1)
+      end)
     end
   end)
-
-  for i = 1, #windows do
-    vim.api.nvim_win_call(windows[i], function()
-      vim.call("vimcord#scroll_cursor", line_count - 1)
-    end)
-  end
 end
 
+-- TODO: this is coupled slightly tighter to discord since we have to find the message by its discord ID, rather than the message number
 function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_extra)
-  local windows = vim.call("win_findbuf", buffer)
-  local bufindentopt = vim.api.nvim_win_get_option(windows[1], "breakindentopt")
-  local split_width = tonumber(
-    vim.split(vim.split(bufindentopt, "shift:")[2] or "", ",")[1]
-  ) or 0
+  vim.schedule(function()
+    local discord_message_id = discord_extra["message_id"]
 
-  local added_lines = vim.api.nvim_buf_call(buffer, function()
-    return vim.call("vimcord#buffer#edit", split_width, discord_message, as_reply, discord_extra)
-  end)
+    local added_lines = vim.api.nvim_buf_call(buffer, function()
+      local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
+      if message_number < 0 then return 0 end
 
-  for i = 1, #windows do
-    vim.api.nvim_win_call(windows[i], function()
-      vim.call("vimcord#scroll_cursor", #discord_message)
+      local ret = vim.call("vimcord#buffer#edit", message_number, discord_message, discord_extra)
+      vim.call("vimcord#discord#redo_reply_extmarks", discord_extra["message_id"], as_reply)
+
+      return ret
     end)
-  end
-end
 
-function vimcord.delete_buffer_message(buffer, discord_message_id)
-  vim.api.nvim_buf_call(buffer, function()
-    vim.call("vimcord#buffer#delete", discord_message_id)
+    if added_lines then
+      local windows = vim.call("win_findbuf", buffer)
+      for i = 1, #windows do
+        vim.api.nvim_win_call(windows[i], function()
+          vim.call("vimcord#scroll_cursor", #discord_message)
+        end)
+      end
+    end
   end)
 end
 
-function vimcord.recolor_visited_links(buffer, unvisited)
-  vim.api.nvim_buf_set_option(buffer, "modifiable", true)
-
-  --fetch the cursor
-  local windows = vim.call("win_findbuf", buffer)
-  local cursor = vim.api.nvim_win_get_cursor(windows[1])
-
-  -- even in vimscript, this would be an execute command, so I'm not torn up about it being here
-  for _, j in pairs(unvisited) do
-    local escape_slashes = j:gsub("/", "\\/")
-    pcall(function()
-      vim.cmd(
-        "keeppatterns %sno/\\(\\%x1B\\)100 \\(" .. escape_slashes ..
-        " \\%x1B\\)/\\1VL \\2/g"
+-- TODO: ditto
+function vimcord.delete_buffer_message(buffer, discord_message_id)
+  vim.schedule(function()
+    vim.api.nvim_buf_call(buffer, function()
+      local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
+      if message_number < 0 then return 0 end
+      vim.call("vimcord#buffer#delete", message_number)
+      vim.call(
+        "vimcord#discord#redo_reply_extmarks",
+        discord_message_id,
+        {{"(Deleted)", "discordReply"}}
       )
     end)
-  end
-
-  --and restore it
-  vim.api.nvim_win_set_cursor(windows[1], cursor)
-
-  vim.api.nvim_buf_set_option(buffer, "modifiable", false)
+  end)
 end
 
-function vimcord.add_link_extmarks(buffer, message_id, extmark_content, media_links)
-  vim.api.nvim_buf_call(buffer, function()
-    -- extmarks
-    local line_number = vim.call("vimcord#buffer#add_link_extmarks", message_id, extmark_content)
-    -- media content
-    if line_number > 0 then
-      vim.call("vimcord#buffer#add_media_content", line_number, media_links)
+-- TODO: use extmark highlights instead of syntax
+function vimcord.recolor_visited_links(buffer, unvisited)
+  vim.schedule(function()
+    vim.api.nvim_buf_set_option(buffer, "modifiable", true)
+
+    --fetch the cursor
+    local windows = vim.call("win_findbuf", buffer)
+    local cursor = vim.api.nvim_win_get_cursor(windows[1])
+
+    -- even in vimscript, this would be an execute command, so I'm not torn up about it being here
+    for _, j in pairs(unvisited) do
+      local escape_slashes = j:gsub("/", "\\/")
+      pcall(function()
+        vim.cmd(
+          "keeppatterns %sno/\\(\\%x1B\\)100 \\(" .. escape_slashes ..
+          " \\%x1B\\)/\\1VL \\2/g"
+        )
+      end)
     end
+
+    --and restore it
+    vim.api.nvim_win_set_cursor(windows[1], cursor)
+
+    vim.api.nvim_buf_set_option(buffer, "modifiable", false)
+  end)
+end
+
+-- TODO: discord_message_id decoupling
+function vimcord.add_link_extmarks(buffer, discord_message_id, extmark_content, media_links)
+  vim.schedule(function()
+    vim.api.nvim_buf_call(buffer, function()
+      local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
+      if message_number < 0 then return 0 end
+      -- extmarks
+      local line_number = vim.call("vimcord#buffer#add_link_extmarks", message_number, extmark_content)
+      -- media content
+      if line_number > 0 then
+        vim.call("vimcord#buffer#add_media_content", message_number, media_links)
+      end
+    end)
   end)
 end

@@ -1,23 +1,14 @@
 function vimcord#link#open_media_under_cursor()
   let startline = line(".") - 1
-  let message = b:discord_content[startline]
+  let message_number = b:vimcord_lines_to_messages[startline]
+  let message = b:vimcord_messages_to_extra_data[message_number]
 
   if !exists("message.message_id")
     return
   endif
 
-  let last_message = message
-  while 1
-    let startline += 1
-    if !exists("b:discord_content[startline]") ||
-          \ get(b:discord_content[startline], "message_id", "") !=# message["message_id"]
-      break
-    endif
-    let last_message = b:discord_content[startline]
-  endwhile
-
-  if exists("last_message.media_content")
-    for link in get(last_message, "media_content", [])
+  if exists("message.media_content")
+    for link in get(message, "media_content", [])
       call s:open_media(link, 0)
     endfor
   endif
@@ -76,6 +67,16 @@ endfunction
 
 function vimcord#link#open_most_recent(only_media)
   let prev = getcurpos()
+
+  " scroll to the last line of the message
+  let current_message = b:vimcord_lines_to_messages[line(".") - 1]
+  while 1
+    let next_message = get(b:vimcord_lines_to_messages, line("."), -1)
+    if next_message !=# current_message
+      break
+    endif
+    normal! j
+  endwhile
 
   " TODO: search does not get last match, even with z flag with cursor at line end
   normal $

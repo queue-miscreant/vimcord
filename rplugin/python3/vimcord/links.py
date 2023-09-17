@@ -1,6 +1,6 @@
 import asyncio
 from http.client import HTTPException    #for catching IncompleteRead
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
 from html import unescape
 from lxml.html import parse as html_parse
@@ -21,11 +21,8 @@ async def urlopen_async(link, loop=None):
     '''Awaitable urllib.request.urlopen; run in a thread pool executor'''
     if loop is None:
         loop = asyncio.get_event_loop()
-    try:
-        ret = await loop.run_in_executor(None, urlopen, link)
-        return ret
-    except (HTTPError, HTTPException):
-        return ""
+    ret = await loop.run_in_executor(None, urlopen, link)
+    return ret
 
 async def open_and_parse_meta(link, loop=None):
     '''Collect a list of all meta tags from the page at a URL'''
@@ -187,13 +184,17 @@ class SpecialOpeners:
     async def discord(link):
         return [], []
 
-async def get_link_content(link):
+async def get_link_content(link, notify_func=lambda x: None):
     try:
         if (coro := SpecialOpeners.attempt(link)) is not None:
             return await coro
         return await SpecialOpeners.title_and_description(link)
     except LinkEmptyException:
-        return [], []
+        pass
+    except (HTTPError, HTTPException, URLError) as e:
+        notify_func("Error when curling link!", level=3)
+        log.error("Error when curling link %s: %s", link, e, stack_info=True)
+    return [], []
 
 # for testing purposes
 if __name__ == "__main__":

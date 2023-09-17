@@ -59,6 +59,7 @@ class DiscordBridge:
         self.discord_pipe.event("message_edit", self.on_message_edit)
         self.discord_pipe.event("message_delete", self.on_message_delete)
         self.discord_pipe.event("dm_update", self.on_dm_update)
+        self.discord_pipe.event("error", self.on_error)
 
         await self.preamble()
 
@@ -127,7 +128,7 @@ class DiscordBridge:
         function to add them.
         '''
         formatted_opengraph = await asyncio.gather(*[
-            get_link_content(link) for link in links
+            get_link_content(link, notify_func=self.plugin.notify) for link in links
         ])
         # flatten results
         # TODO: intercalate?
@@ -159,7 +160,7 @@ class DiscordBridge:
         def on_ready_callback():
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
-                "vimcord#buffer#add_extra_data",
+                "vimcord#discord#add_extra_data",
                 [
                     { i.id: format_channel(i, raw=True)
                       for i in self.unmuted_channels },
@@ -198,8 +199,7 @@ class DiscordBridge:
                 {
                     "channel_id": post.channel.id,
                     "server_id":  (post.server.id if post.server is not None else None),
-                },
-                False
+                }
             ))
 
         _, reply, message = clean_post(self, post)
@@ -214,8 +214,7 @@ class DiscordBridge:
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
                 "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
-            },
-            True
+            }
         ))
         return ret
 
@@ -231,8 +230,7 @@ class DiscordBridge:
                 {
                     "channel_id": post.channel.id,
                     "server_id":  (post.server.id if post.server is not None else None),
-                },
-                False
+                }
             )
 
         links, reply, message = clean_post(self, post)
@@ -300,6 +298,10 @@ class DiscordBridge:
     async def on_dm_update(self, dm):
         '''DM discord user status change'''
         #TODO: direct message updates
+
+    async def on_error(self, exc):
+        '''On error received from server'''
+        self.plugin.notify(f"Server encountered error: {exc}")
 
     #---Check if a channel is muted---------------------------------------------
     def is_muted(self, server, channel):

@@ -85,5 +85,5 @@ class Vimcord:
     def open_bridge(self, buffer=None):
         self.bridge = DiscordBridge(self, buffer)
 
-    def notify(self, msg):
-        self.nvim.async_call(self.nvim.api.notify, msg, 4, {})
+    def notify(self, msg, level=4):
+        self.nvim.async_call(self.nvim.api.notify, msg, level, {})

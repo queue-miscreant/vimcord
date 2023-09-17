@@ -1,4 +1,7 @@
 setlocal nonumber
+setlocal wrap
+setlocal linebreak
+setlocal breakindent
 " setlocal completefunc="s:complete_reply"
 exe "setlocal completefunc=" .. expand("<SID>") .. "complete_reply"
 
@@ -106,7 +109,6 @@ function s:add_drag_and_drop(position)
   if filename[0] ==# filename[-1:] && (filename[0] ==# "'" || filename[0] ==# "\"")
     let filename = filename[1:-2]
   endif
-  echom filename
   if filereadable(filename)
     " remove the filename we just inserted
     exe "normal \"_d" .. s:last_move_size .. "h"
