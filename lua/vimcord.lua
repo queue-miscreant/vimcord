@@ -37,25 +37,17 @@ function vimcord.create_window(create_tab, ...)
 end
 
 -- all
-function vimcord.append_to_buffer(buffer, discord_message, reply, discord_extra)
-  vim.schedule(function()
-    vim.api.nvim_buf_call(buffer, function()
-      vim.call("vimcord#buffer#append", discord_message, reply, discord_extra)
-    end)
-
-    local windows = vim.call("win_findbuf", buffer)
-    for i = 1, #windows do
-      vim.api.nvim_win_call(windows[i], function()
-        vim.call("vimcord#scroll_cursor", #discord_message)
-      end)
-    end
-  end)
-end
-
-function vimcord.append_many_to_buffer(buffer, discord_messages)
+function vimcord.append_messages_to_buffer(buffer, discord_messages)
   vim.schedule(function()
     local line_count = 0
     vim.api.nvim_buf_call(buffer, function()
+      local total_lines = vim.call("line", "$")
+      local cursor_position = vim.call("line", ".")
+
+      if cursor_position == 1 and total_lines == cursor_position then
+        line_count = line_count - 1
+      end
+
       for _, message in pairs(discord_messages) do
         vim.call("vimcord#buffer#append", unpack(message))
         local contents = message[1]
@@ -66,7 +58,7 @@ function vimcord.append_many_to_buffer(buffer, discord_messages)
     local windows = vim.call("win_findbuf", buffer)
     for i = 1, #windows do
       vim.api.nvim_win_call(windows[i], function()
-        vim.call("vimcord#scroll_cursor", line_count - 1)
+        vim.call("vimcord#scroll_cursor", line_count)
       end)
     end
   end)

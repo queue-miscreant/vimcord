@@ -1,4 +1,5 @@
 import asyncio
+from functools import lru_cache
 from http.client import HTTPException    #for catching IncompleteRead
 from urllib.error import HTTPError, URLError
 from urllib.request import urlopen, Request
@@ -17,16 +18,9 @@ UTF8_PARSER = HTMLParser(encoding='utf-8')
 class LinkEmptyException(Exception):
     '''vimcord.links exception for catching empty curl results'''
 
-async def urlopen_async(link, loop=None):
-    '''Awaitable urllib.request.urlopen; run in a thread pool executor'''
-    if loop is None:
-        loop = asyncio.get_event_loop()
-    ret = await loop.run_in_executor(None, urlopen, link)
-    return ret
-
-async def open_and_parse_meta(link, loop=None):
+def open_and_parse_meta(link):
     '''Collect a list of all meta tags from the page at a URL'''
-    html = await urlopen_async(link, loop=loop)
+    html = urlopen(link)
     if not html:
         raise LinkEmptyException(
             f"Curl failed for {link.full_url if isinstance(link, Request) else link}"
@@ -37,18 +31,14 @@ async def open_and_parse_meta(link, loop=None):
         full.append(meta_tag.attrib)
     return full
 
-async def get_opengraph(link, *args, loop=None):
-    '''
-    Awaitable OpenGraph data, with HTML5 entities converted into unicode.
-    If a tag repeats (like image), the value will be a list. Returns dict if no
-    extra args supplied. Otherwise, for each in `*args`, return is such that
-    `value1[, value2] = get_opengraph(..., key1[, key2])` formats correctly.
-    '''
+@lru_cache(maxsize=128)
+def _get_opengraph(link, *args):
+    '''`get_opengraph` backend. Handles extra caching, but is intended to be run in a thread pool'''
     full = {}
     no_head = False
     if isinstance(link, str):
         request = Request(link, method="HEAD", headers={ "User-Agent": "curl" })
-        response = await urlopen_async(request, loop=loop)
+        response = urlopen(request)
         if not response:
             no_head = True
         else:
@@ -57,7 +47,7 @@ async def get_opengraph(link, *args, loop=None):
             no_head = content.find("text/html") == -1
 
     if not no_head:
-        for meta_tag in (await open_and_parse_meta(link, loop=loop)):
+        for meta_tag in open_and_parse_meta(link):
             prop = meta_tag.get("property")
             if not prop or not prop.startswith("og:"):
                 continue
@@ -79,6 +69,17 @@ async def get_opengraph(link, *args, loop=None):
     if len(args) == 1:
         return full[args[0]]        #never try 1-tuple assignment
     return [full[i] if i in full else None for i in args]    #tuple unpacking
+
+async def get_opengraph(link, *args, loop=None):
+    '''
+    Awaitable OpenGraph data, with HTML5 entities converted into unicode.
+    If a tag repeats (like image), the value will be a list. Returns dict if no
+    extra args supplied. Otherwise, for each in `*args`, return is such that
+    `value1[, value2] = get_opengraph(..., key1[, key2])` formats correctly.
+    '''
+    if loop is None:
+        loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _get_opengraph, link, *args)
 
 def unwrap_media(media_list):
     ret = []
@@ -158,7 +159,7 @@ class SpecialOpeners:
 
         disp = [
                 [["Twitter: ", "VimcordOGDefault"], [who, "VimcordOGTitle"]],
-            *[[[i, "VimcordOGDescription"]]
+            *[[[i + ' ', "VimcordOGDescription"]]
               for i in description.split("\n") if i.rstrip()]
         ]
         additional = ""

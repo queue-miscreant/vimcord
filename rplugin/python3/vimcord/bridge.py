@@ -95,6 +95,14 @@ class DiscordBridge:
             ]
             for server in self._servers}
 
+    @property
+    def extra_data(self):
+        return [
+            { i.id: format_channel(i, raw=True) for i in self.unmuted_channels },
+            self.all_members,
+            self._user.id
+        ]
+
     def get_channel_by_name(self, channel_name):
         for channel in self.unmuted_channels:
             if channel_name == format_channel(channel, raw=True):
@@ -163,20 +171,32 @@ class DiscordBridge:
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
                 "vimcord#discord#add_extra_data",
-                [
-                    { i.id: format_channel(i, raw=True)
-                      for i in self.unmuted_channels },
-                    self.all_members,
-                    self._user.id
-                ]
+                self.extra_data
             )
+
             log.debug(unmuted_messages)
-            messages = [
-                i
+            links_and_messages = [
+                self._prepare_post_for_buffer(message)
                 for message in unmuted_messages
-                for i in self._on_message_no_append(message)
             ]
-            self.plugin.nvim.lua.vimcord.append_many_to_buffer(self._buffer, messages)
+            id_and_links, unflat_messages = zip(*links_and_messages)
+            # send messages to vim
+            self.plugin.nvim.lua.vimcord.append_messages_to_buffer(
+                self._buffer,
+                [message for i in unflat_messages for message in i]
+            )
+
+            # start link fetches
+            if not self.plugin.do_link_previews:
+                return
+
+            for message_id, links in id_and_links:
+                if not links:
+                    continue
+                self.plugin.nvim.loop.create_task(
+                    self.add_link_extmarks(message_id, links)
+                )
+
 
         self.plugin.nvim.async_call(on_ready_callback)
 
@@ -185,12 +205,23 @@ class DiscordBridge:
         muted = self.is_muted(getattr(post, "server", None), post.channel)
         if muted:
             return
+        self.all_messages[post.id] = post
+
         self.plugin.nvim.async_call(
-            self._on_message,
-            post,
+            self._append_messages_to_buffer,
+            *self._prepare_post_for_buffer(post)
         )
 
-    def _on_message_no_append(self, post):
+    def _append_messages_to_buffer(self, links_and_id, messages):
+        self.plugin.nvim.lua.vimcord.append_messages_to_buffer(self._buffer, messages)
+
+        message_id, links = links_and_id
+        if links and self.plugin.do_link_previews:
+            self.plugin.nvim.loop.create_task(
+                self.add_link_extmarks(message_id, links)
+            )
+
+    def _prepare_post_for_buffer(self, post):
         '''On message callback, when vim is available'''
         ret = []
         if self._last_channel != post.channel:
@@ -204,7 +235,7 @@ class DiscordBridge:
                 }
             ))
 
-        _, reply, message = clean_post(self, post)
+        links, reply, message = clean_post(self, post)
         if message.split("\n") == []:
             log.debug("DETECTED BAD MESSAGE CONTENTS: %s in channel %s", repr(post.content), str(post.channel))
 
@@ -218,42 +249,7 @@ class DiscordBridge:
                 "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
             }
         ))
-        return ret
-
-    def _on_message(self, post):
-        '''On message callback, when vim is available'''
-        self.all_messages[post.id] = post
-        if self._last_channel != post.channel:
-            self._last_channel = post.channel
-            self.plugin.nvim.lua.vimcord.append_to_buffer(
-                self._buffer,
-                [format_channel(post.channel)],
-                [],
-                {
-                    "channel_id": post.channel.id,
-                    "server_id":  (post.server.id if post.server is not None else None),
-                }
-            )
-
-        links, reply, message = clean_post(self, post)
-        if message.split("\n") == []:
-            log.debug("DETECTED BAD MESSAGE CONTENTS: %s in channel %s", repr(post.content), str(post.channel))
-        self.plugin.nvim.lua.vimcord.append_to_buffer(
-            self._buffer,
-            message.split("\n") or [""],
-            reply,
-            {
-                "message_id": post.id,
-                "channel_id": post.channel.id,
-                "server_id":  (post.server.id if post.server is not None else None),
-                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
-            },
-            True
-        )
-        if links:
-            self.plugin.nvim.loop.create_task(
-                self.add_link_extmarks(post.id, links)
-            )
+        return (post.id, links), ret
 
     async def on_message_edit(self, _, post):
         '''If a message was edited, update the buffer'''
@@ -281,7 +277,7 @@ class DiscordBridge:
                 "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
             },
         )
-        if links:
+        if links and self.plugin.do_link_previews:
             self.plugin.nvim.loop.create_task(
                 self.add_link_extmarks(post.id, links)
             )

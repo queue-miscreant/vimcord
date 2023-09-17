@@ -22,6 +22,7 @@ class Vimcord:
     def __init__(self, nvim):
         self.nvim = nvim
         self.socket_path = "/tmp/vimcord_server"
+        self.do_link_previews = bool(nvim.api.get_var("vimcord_show_link_previews"))
 
         nvim.loop.set_exception_handler(self.handle_exception)
         self.bridge = None
@@ -87,7 +88,7 @@ class Vimcord:
 
     def handle_exception(self, loop, context):
         if (message := context.get("exception")) is None:
-            log.debug("%s", message)
+            log.error("%s", message)
             self.notify(message, level=0)
             return
         formatted = traceback.format_exception(context["exception"])

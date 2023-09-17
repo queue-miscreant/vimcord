@@ -168,6 +168,14 @@ will not be applied to old messages.
 Default value is 4. Minimum value is 1.
 
 
+g:vimcord_show_link_previews                            *g:vimcord_show_link_previews*
+
+Whether or not to enable link previews. This mimics content displayed in the
+Discord webapp, but without images.
+
+Default value is 1 (enabled).
+
+
 g:vimcord_image_opener                                  *g:vimcord_image_opener*
 
 Command name or path to executable to use to open image links.

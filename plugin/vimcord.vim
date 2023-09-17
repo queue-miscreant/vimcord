@@ -7,8 +7,10 @@ lua require("vimcord")
 
 let g:vimcord_discord_username = get(g:, "vimcord_discord_username", "")
 let g:vimcord_discord_password = get(g:, "vimcord_discord_password", "")
+
 let g:vimcord_dnd_paste_threshold = get(g:, "vimcord_dnd_paste_threshold", 8)
 let g:vimcord_shift_width = max([get(g:, "vimcord_shift_width", 4), 1])
+let g:vimcord_show_link_previews = get(g:, "vimcord_show_link_previews", 1)
 
 " Link open settings
 let g:vimcord_image_opener = get(g:, "vimcord_image_opener", "feh")

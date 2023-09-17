@@ -153,6 +153,14 @@ will not be applied to old messages.
 Default value is 4. Minimum value is 1.
 
 
+### `g:vimcord_show_link_previews`
+
+Whether or not to enable link previews. This mimics content displayed in the
+Discord webapp, but without images.
+
+Default value is 1 (enabled).
+
+
 ### `g:vimcord_image_opener`
 
 Command name or path to executable to use to open image links.
@@ -211,7 +219,7 @@ TODOs
 - Planned soon
     - Show mentions
     - Make `<c-g>` and `<a-g>` better
-    - Option to disable link previews
+        - Show all "media" (such as previews and opengraph videos) with the latter, not just opengraph images
     - Sorting the main buffer based on message channel id
     - Show visited links with extmark highlights instead of in-document colors using syntax
     - Closing reply buffer just hides it
@@ -219,7 +227,6 @@ TODOs
 - Unplanned - maybe soon?
     - Occasionally, the discord connection returns a 443 or similar error silently
     - Display user connection status (sign column tricks?)
-    - Separate multiple lines better (`linebreak` appears to allow horizontal tabs to do this?)
     - Separate discord content out from "normal" reply window/message window pipeline (partially done)
 
 - Future work
