@@ -227,6 +227,11 @@ HIGHLIGHTS                                              *vimcord-highlights*
 
 The following highlight groups are intended to be open to the end user:
 
+VimcordHighlight                The highlight group used for marking messages
+                                as special (for example, Discord mentions).
+                                These marks are drawn in the first column in
+                                the first row of a message.
+
                                                         *vimcord-discord-highlights*
 
 discordServerName               Used for displaying server (guild) names

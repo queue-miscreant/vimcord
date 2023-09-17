@@ -179,6 +179,8 @@ class DiscordBridge:
                 self._prepare_post_for_buffer(message)
                 for message in unmuted_messages
             ]
+            if not links_and_messages:
+                return
             id_and_links, unflat_messages = zip(*links_and_messages)
             # send messages to vim
             self.plugin.nvim.lua.vimcord.append_messages_to_buffer(
@@ -203,7 +205,7 @@ class DiscordBridge:
     async def on_message(self, post):
         '''Add message to the buffer if it has not been muted'''
         muted = self.is_muted(getattr(post, "server", None), post.channel)
-        if muted:
+        if muted or post.id in self.all_messages:
             return
         self.all_messages[post.id] = post
 
@@ -232,7 +234,8 @@ class DiscordBridge:
                 {
                     "channel_id": post.channel.id,
                     "server_id":  (post.server.id if post.server is not None else None),
-                }
+                },
+                False,
             ))
 
         links, reply, message = clean_post(self, post)
@@ -247,7 +250,8 @@ class DiscordBridge:
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
                 "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
-            }
+            },
+            self._user.id in [i.id for i in post.mentions],
         ))
         return (post.id, links), ret
 
@@ -276,6 +280,7 @@ class DiscordBridge:
                 "server_id":  (post.server.id if post.server is not None else None),
                 "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
             },
+            self._user.id in [i.id for i in post.mentions],
         )
         if links and self.plugin.do_link_previews:
             self.plugin.nvim.loop.create_task(

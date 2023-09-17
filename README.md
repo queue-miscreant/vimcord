@@ -217,7 +217,6 @@ TODOs
 -----
 
 - Planned soon
-    - Show mentions
     - Make `<c-g>` and `<a-g>` better
         - Show all "media" (such as previews and opengraph videos) with the latter, not just opengraph images
     - Sorting the main buffer based on message channel id

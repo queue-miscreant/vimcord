@@ -50,7 +50,7 @@ function vimcord#buffer#lines_by_message_number(message_number, ...)
   return [start_line, end_line]
 endfunction
 
-function vimcord#buffer#append(discord_message, reply, discord_extra)
+function vimcord#buffer#append(discord_message, reply, discord_extra, highlighted)
   " BUFFER MODIFIABLE
   setlocal modifiable
 
@@ -78,11 +78,21 @@ function vimcord#buffer#append(discord_message, reply, discord_extra)
           \ )
   endif
 
+  if a:highlighted
+    call nvim_buf_set_extmark(
+          \ 0,
+          \ luaeval("vimcord.HIGHLIGHT_NAMESPACE"),
+          \ line_number,
+          \ 0,
+          \ { "end_col": 1, "hl_group": "VimcordHighlight" }
+          \ )
+  endif
+
   setlocal nomodifiable
   " BUFFER NOT MODIFIABLE
 endfunction
 
-function vimcord#buffer#edit(message_number, discord_message, discord_extra)
+function vimcord#buffer#edit(message_number, discord_message, discord_extra, highlighted)
   " TODO: message number instead
   let [start_line, end_line] =
         \ vimcord#buffer#lines_by_message_number(a:message_number)
@@ -100,6 +110,13 @@ function vimcord#buffer#edit(message_number, discord_message, discord_extra)
   let reply_extmark = nvim_buf_get_extmarks(
         \ 0,
         \ luaeval("vimcord.REPLY_NAMESPACE"),
+        \ [start_line, 0],
+        \ [end_line + 1, -1],
+        \ { "details": 1 }
+        \ )
+  let highlight_extmark = nvim_buf_get_extmarks(
+        \ 0,
+        \ luaeval("vimcord.HIGHLIGHT_NAMESPACE"),
         \ [start_line, 0],
         \ [end_line + 1, -1],
         \ { "details": 1 }
@@ -153,6 +170,27 @@ function vimcord#buffer#edit(message_number, discord_message, discord_extra)
           \   "virt_lines_above": v:true,
           \   "virt_lines": extmark_content[3]["virt_lines"]
           \ })
+  endif
+
+  " Move, add, or delete highlight extmark
+  if a:highlighted
+    let extmark_content = { "end_col": 1, "hl_group": "VimcordHighlight" }
+    if len(highlight_extmark) > 0
+      let extmark_content["id"] = highlight_extmark[0][0]
+    endif
+    call nvim_buf_set_extmark(
+          \ 0,
+          \ luaeval("vimcord.HIGHLIGHT_NAMESPACE"),
+          \ start_line,
+          \ 0,
+          \ extmark_content
+          \ )
+  elseif len(highlight_extmark) > 0
+    call nvim_buf_del_extmark(
+          \ 0,
+          \ luaeval("vimcord.HIGHLIGHT_NAMESPACE"),
+          \ highlight_extmark[0][0]
+          \ )
   endif
 
   setlocal nomodifiable

@@ -2,8 +2,10 @@ if vimcord == nil then vimcord = {} end
 
 local LINKS_NAMESPACE = vim.api.nvim_create_namespace("vimcord-links")
 local REPLY_NAMESPACE = vim.api.nvim_create_namespace("vimcord-replies")
+local HIGHLIGHT_NAMESPACE = vim.api.nvim_create_namespace("vimcord-highlights")
 vimcord.LINKS_NAMESPACE = LINKS_NAMESPACE
 vimcord.REPLY_NAMESPACE = REPLY_NAMESPACE
+vimcord.HIGHLIGHT_NAMESPACE = HIGHLIGHT_NAMESPACE
 
 function vimcord.create_window(create_tab, ...)
   local buf = ...
@@ -65,7 +67,7 @@ function vimcord.append_messages_to_buffer(buffer, discord_messages)
 end
 
 -- TODO: this is coupled slightly tighter to discord since we have to find the message by its discord ID, rather than the message number
-function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_extra)
+function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_extra, highlighted)
   vim.schedule(function()
     local discord_message_id = discord_extra["message_id"]
 
@@ -73,7 +75,7 @@ function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_
       local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
       if message_number < 0 then return 0 end
 
-      local ret = vim.call("vimcord#buffer#edit", message_number, discord_message, discord_extra)
+      local ret = vim.call("vimcord#buffer#edit", message_number, discord_message, discord_extra, highlighted)
       vim.call("vimcord#discord#redo_reply_extmarks", discord_extra["message_id"], as_reply)
 
       return ret
