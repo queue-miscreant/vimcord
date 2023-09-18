@@ -124,7 +124,7 @@ class DiscordAction:
 
         self.plugin.nvim.async_call(
             self.plugin.nvim.api.call_function,
-            "vimcord#action#do_edit",
+            "vimcord#discord#action#do_edit",
              [str(message.content), message_data]
          )
 

@@ -59,22 +59,22 @@ endfunction
 
 " Plugin keys
 nnoremap <silent><buffer> <Plug>(vimcord_open_reply)
-      \ :<c-u>.call vimcord#action#open_reply(0)<cr>
+      \ :<c-u>.call vimcord#discord#action#open_reply(0)<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_open_direct_reply)
-      \ :<c-u>.call vimcord#action#open_reply(1)<cr>
+      \ :<c-u>.call vimcord#discord#action#open_reply(1)<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_delete_message)
-      \ :<c-u>.call vimcord#action#delete()<cr>
+      \ :<c-u>.call vimcord#discord#action#delete()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_enter_channel)
-      \ :<c-u>call vimcord#action#open_channel()<cr>
+      \ :<c-u>call vimcord#discord#action#open_channel()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_edit)
-      \ :<c-u>.call vimcord#action#edit_start()<cr>
+      \ :<c-u>.call vimcord#discord#action#edit_start()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_goto_reference)
-      \ :<c-u>.call vimcord#discord#goto_reference()<cr>
+      \ :<c-u>.call vimcord#discord#local#goto_reference()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_open_under_cursor)
       \ :<c-u>call vimcord#link#open_under_cursor(0)<cr>

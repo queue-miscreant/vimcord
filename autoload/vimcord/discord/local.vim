@@ -1,17 +1,17 @@
-" discord.viM
+" discord.vim
 "
 " Functions relating Discord-identifying data, stored in b:vimcord_messages_to_extra_data
 " Fields stored here include channel, message, and server IDs
 "
 " Also provides function for reply extmark manipulation
 
-function vimcord#discord#add_extra_data(discord_channels_dict, user_id)
+function vimcord#discord#local#add_extra_data(discord_channels_dict, user_id)
   let g:vimcord["channel_names"] = a:discord_channels_dict
   let g:vimcord["discord_user_id"] = a:user_id
 endfunction
 
 
-function vimcord#discord#get_message_number(message_id)
+function vimcord#discord#local#get_message_number(message_id)
   " call nvim_buf_get_var()
   let message_count = len(b:vimcord_messages_to_extra_data)
 
@@ -25,7 +25,7 @@ function vimcord#discord#get_message_number(message_id)
   return -1
 endfunction
 
-function vimcord#discord#redo_reply_extmarks(reply_id, new_contents)
+function vimcord#discord#local#redo_reply_extmarks(reply_id, new_contents)
   call insert(a:new_contents, [" ╓─", "discordReply"], 0)
 
   let reply_extmarks = nvim_buf_get_extmarks(
@@ -58,7 +58,7 @@ function vimcord#discord#redo_reply_extmarks(reply_id, new_contents)
   endfor
 endfunction
 
-function vimcord#discord#goto_reference() range
+function vimcord#discord#local#goto_reference() range
   if len(b:vimcord_lines_to_messages) <= a:firstline - 1
     echohl ErrorMsg
     echo "No message under cursor"
@@ -83,7 +83,7 @@ function vimcord#discord#goto_reference() range
     return
   endtry
 
-  let message_number = vimcord#discord#get_message_number(reply_id)
+  let message_number = vimcord#discord#local#get_message_number(reply_id)
   if message_number == -1
     " TODO: try to prepend reference contents
     echohl ErrorMsg
@@ -94,4 +94,21 @@ function vimcord#discord#goto_reference() range
 
   let [start_line, end_line] = vimcord#buffer#lines_by_message_number(message_number)
   call cursor(start_line + 1, 0)
+endfunction
+
+function vimcord#discord#local#complete_reply()
+  if !(exists("g:vimcord.reply_target_data.data.server_id"))
+    return ""
+  endif
+
+  let prevcomplete = &completeopt
+  set completeopt+=noinsert,noselect
+
+  let server_id = g:vimcord["reply_target_data"]["data"]["server_id"]
+  let members = VimcordInvokeDiscordAction("get_server_members", server_id)
+  call complete(col("."), members)
+
+  let &completeopt = prevcomplete
+
+  return ""
 endfunction

@@ -37,7 +37,7 @@ function vimcord.create_window(create_tab, ...)
   -- hold off until we've got a window to set the filetype
   vim.api.nvim_buf_set_option(buf, "filetype", "discord_messages")
 
-  local reply_window = vim.call("vimcord#create_reply_window", true)
+  local reply_window = vim.call("vimcord#reply#create_reply_window", true)
 
   vim.call("win_gotoid", win)
   return buf
@@ -77,11 +77,11 @@ function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_
     local discord_message_id = discord_extra["message_id"]
 
     local added_lines = vim.api.nvim_buf_call(buffer, function()
-      local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
+      local message_number = vim.call("vimcord#discord#local#get_message_number", discord_message_id)
       if message_number < 0 then return 0 end
 
       local ret = vim.call("vimcord#buffer#edit", message_number, discord_message, discord_extra, highlighted)
-      vim.call("vimcord#discord#redo_reply_extmarks", discord_extra["message_id"], as_reply)
+      vim.call("vimcord#discord#local#redo_reply_extmarks", discord_extra["message_id"], as_reply)
 
       return ret
     end)
@@ -101,11 +101,11 @@ end
 function vimcord.delete_buffer_message(buffer, discord_message_id)
   vim.schedule(function()
     vim.api.nvim_buf_call(buffer, function()
-      local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
+      local message_number = vim.call("vimcord#discord#local#get_message_number", discord_message_id)
       if message_number < 0 then return 0 end
       vim.call("vimcord#buffer#delete", message_number)
       vim.call(
-        "vimcord#discord#redo_reply_extmarks",
+        "vimcord#discord#local#redo_reply_extmarks",
         discord_message_id,
         {{"(Deleted)", "discordReply"}}
       )
@@ -117,7 +117,7 @@ end
 function vimcord.add_link_extmarks(buffer, discord_message_id, preview_extmarks, media_links, visited_links)
   vim.schedule(function()
     vim.api.nvim_buf_call(buffer, function()
-      local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
+      local message_number = vim.call("vimcord#discord#local#get_message_number", discord_message_id)
       if message_number < 0 then return 0 end
       -- extmarks
       vim.call("vimcord#buffer#add_link_extmarks", message_number, preview_extmarks, visited_links)

@@ -1,44 +1,16 @@
-let s:handlers = {}
+" Typical Discord buffer, which completes @s and supports file uploads
+function s:buffer_with_ats()
+  imap <buffer> @ @<c-r>=vimcord#discord#local#complete_reply()<cr>
+  let b:vimcord_cleanup = "vimcord#discord#action#cleanup_buffer_with_ats"
 
-function vimcord#action#try_handle(action_name)
-  if exists("s:handlers." .. a:action_name)
-    call s:handlers[a:action_name]()
-    return 1
-  endif
-  return 0
+  call vimcord#reply#enable_filename()
 endfunction
 
-function s:enter_reply_buffer(target_data, buffer_contents)
-  " Set status by peeking into target data
-  if exists("a:target_data.data.channel_id")
-    " XXX: Interface with other status line plugins?
-    " Not-so-easy otherwise
-    if !exists(":AirlineRefresh")
-      for window in win_findbuf(g:vimcord["reply_buffer"])
-        call nvim_win_set_option(window, "statusline", VimcordShowChannel())
-      endfor
-    endif
-  endif
-
-  let g:vimcord["reply_target_data"] = a:target_data
-
-  " Enter reply buffer
-  call nvim_buf_set_var(g:vimcord["reply_buffer"], "vimcord_entering_buffer", 1)
-  let target_window = bufwinnr(g:vimcord["reply_buffer"])
-  if target_window == -1
-    " TODO: consider opening the reply window instead
-    return
-  endif
-  exe target_window .. "wincmd w"
-
-  " Set buffer attributes
-  if len(a:buffer_contents) !=# 0
-    call setline(1, a:buffer_contents)
-  endif
-  startinsert!
+function vimcord#discord#action#cleanup_buffer_with_ats()
+  call nvim_buf_del_keymap(g:vimcord["reply_buffer"], "i", "@")
 endfunction
 
-function vimcord#action#open_reply(is_reply) range
+function vimcord#discord#action#open_reply(is_reply) range
   if len(b:vimcord_lines_to_messages) <= a:firstline - 1
     echohl ErrorMsg
     echo "No message under cursor"
@@ -60,14 +32,16 @@ function vimcord#action#open_reply(is_reply) range
     setlocal cursorline
   endif
 
-  call s:enter_reply_buffer({
+  call vimcord#reply#enter_reply_buffer({
         \   "data": message_data,
         \   "action": "message"
         \ },
-        \ "")
+        \ "",
+        \ function("s:buffer_with_ats"))
 endfunction
 
-function vimcord#action#delete() range
+" Delete Discord message -------------------------------------------------------
+function vimcord#discord#action#delete() range
   if len(b:vimcord_lines_to_messages) <= a:firstline - 1
     echohl ErrorMsg
     echo "No message under cursor"
@@ -80,7 +54,8 @@ function vimcord#action#delete() range
   call VimcordInvokeDiscordAction("delete", message_data)
 endfunction
 
-function vimcord#action#edit_start() range
+" Edit Discord message ---------------------------------------------------------
+function vimcord#discord#action#edit_start() range
   if len(b:vimcord_lines_to_messages) <= a:firstline - 1
     echohl ErrorMsg
     echo "No message under cursor"
@@ -94,40 +69,26 @@ function vimcord#action#edit_start() range
 endfunction
 
 function s:do_edit(raw_data, message_data)
-  call s:enter_reply_buffer({
+  call vimcord#reply#enter_reply_buffer({
           \   "data": a:message_data,
           \   "action": "do_edit"
           \ },
-          \ a:raw_data
-          \ )
+          \ a:raw_data,
+          \ function("s:buffer_with_ats"))
 endfunction
 
-function vimcord#action#do_edit(raw_data, message_data)
+function vimcord#discord#action#do_edit(raw_data, message_data)
   call timer_start(0,
         \ { -> s:do_edit(a:raw_data, a:message_data) }
         \ )
 endfunction
 
-function vimcord#action#reconnect()
+function vimcord#discord#action#reconnect()
   call VimcordInvokeDiscordAction("try_reconnect")
 endfunction
 
-function s:echo(message, ...)
-  if a:0 >= 1
-    exe "echohl " .. a:1
-  else
-    echohl ErrorMsg
-  endif
-  echo a:message
-  echohl None
-endfunction
 
-function! s:remove_vimcord_autocmds()
-  augroup vimcord_open_channel
-    autocmd!
-  augroup end
-endfunction
-
+" Open channel by name ---------------------------------------------------------
 function! s:update_server_suggestions()
   if line(".") > 1
     call deletebufline(bufnr(), 2, "$")
@@ -141,16 +102,9 @@ function! s:update_server_suggestions()
   call complete(col("."), b:vimcord_fuzzy_match_results)
 endfunction
 
-function vimcord#action#open_channel() range
-  " Get the channel name by name
-  " TODO: investigate a better way of doing this (new split, etc)
-  " Update suggestions when typing channel name
-
-  call s:enter_reply_buffer({
-        \   "data": {},
-        \   "action": "find_discord_channel"
-        \ },
-        \ "")
+" Discord server suggestions
+function s:server_suggestions()
+  " TODO: this could be dynamic
   let b:vimcord_fuzzy_match = values(get(g:vimcord, "channel_names", {}))
   let b:vimcord_fuzzy_match_results = []
 
@@ -160,15 +114,44 @@ function vimcord#action#open_channel() range
   set completeopt+=noinsert,menuone
   let &pumheight = g:vimcord_max_suggested_servers
 
-  " Automatic completion/autocommand removal
-  augroup vimcord_open_channel
-    autocmd!
+  " Automatic completion
+  augroup vimcord_reply_dynamic
     autocmd TextchangedI <buffer> call s:update_server_suggestions()
-    autocmd WinLeave <buffer> call s:remove_vimcord_autocmds()
   augroup end
+
+  let b:vimcord_cleanup = "vimcord#discord#action#cleanup_server_suggestions"
 endfunction
 
-function s:handlers.find_discord_channel()
+function vimcord#discord#action#cleanup_server_suggestions()
+  " Restore fuzzy completion data
+  try
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match")
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match_results")
+    call nvim_set_option(
+          \ "completeopt",
+          \ nvim_buf_get_var(g:vimcord["reply_buffer"], "vimcord_previous_completeopt")
+          \ )
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_previous_pumheight")
+    call nvim_set_option(
+          \ "pumheight",
+          \ nvim_buf_get_var(g:vimcord["reply_buffer"], "vimcord_previous_pumheight")
+          \ )
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_previous_pumheight")
+  catch
+  endtry
+endfunction
+
+function vimcord#discord#action#open_channel() range
+  " Get the channel name by name, updating suggestions when typing channel name
+  call vimcord#reply#enter_reply_buffer({
+        \   "data": {},
+        \   "action": "find_discord_channel"
+        \ },
+        \ "",
+        \ function("s:server_suggestions"))
+endfunction
+
+function s:find_discord_channel()
   " Try the first fuzzy result
   let channel_name = get(b:vimcord_fuzzy_match_results, 0, "")
   if channel_name ==# ""
@@ -192,10 +175,13 @@ function s:handlers.find_discord_channel()
   echo ""
 
   call timer_start(0, { ->
-        \   s:enter_reply_buffer({
+        \   vimcord#reply#enter_reply_buffer({
         \     "data": { "channel_id": channel_id },
         \     "action": "message"
         \   },
-        \   "")
+        \   "",
+        \   function("s:buffer_with_ats"))
         \ })
 endfunction
+
+call vimcord#reply#add_handler("find_discord_channel", function("s:find_discord_channel"))

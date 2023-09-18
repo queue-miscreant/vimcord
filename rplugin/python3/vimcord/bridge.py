@@ -182,7 +182,7 @@ class DiscordBridge:
         def on_ready_callback():
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
-                "vimcord#discord#add_extra_data",
+                "vimcord#discord#local#add_extra_data",
                 self.extra_data
             )
 
