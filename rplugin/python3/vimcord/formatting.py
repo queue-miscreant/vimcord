@@ -20,13 +20,6 @@ def ellipsize(string, width):
         return string[:width-1] + "…"
     return string
 
-def color_visited_link(bridge, match):
-    color = "100"
-    link = match.group(1)
-    if link in bridge.visited_links:
-        color = "VL"
-    return syntax_color(color, link, literal=True)
-
 def clean_post(bridge, post: discord.Message, no_reply=False):
     embeds = [i["url"] for i in post.attachments]
     links = LINK_RE.findall(post.clean_content) + embeds
@@ -36,10 +29,6 @@ def clean_post(bridge, post: discord.Message, no_reply=False):
 
     # clean up post content
     content = post.clean_content + ' ' + ' '.join(embeds)
-    content = LINK_RE.sub(
-        lambda x: color_visited_link(bridge, x),
-        content
-    )
 
     author = post.author.display_name
     if hasattr(post.author, "color"):

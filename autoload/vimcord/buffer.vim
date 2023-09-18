@@ -211,6 +211,8 @@ function vimcord#buffer#delete(message_number)
   setlocal modifiable
 
   call nvim_buf_clear_namespace(0, luaeval("vimcord.LINKS_NAMESPACE"), start_line, end_line + 1)
+  call nvim_buf_clear_namespace(0, luaeval("vimcord.REPLY_NAMESPACE"), start_line, end_line + 1)
+  call nvim_buf_clear_namespace(0, luaeval("vimcord.HIGHLIGHT_NAMESPACE"), start_line, end_line + 1)
   " delete lines after first one of the message
   call deletebufline(bufname(), start_line + 1, end_line + 1)
   " remove old lines
@@ -220,13 +222,12 @@ function vimcord#buffer#delete(message_number)
   " BUFFER NOT MODIFIABLE
 endfunction
 
-function vimcord#buffer#add_link_extmarks(message_number, extmarks)
+function vimcord#buffer#add_link_extmarks(message_number, preview_extmarks, visited_links)
   let [start_line, end_line] = vimcord#buffer#lines_by_message_number(a:message_number)
-  let window = bufwinid(bufnr())
 
-  if end_line + 1 > line("$", window)
+  if end_line + 1 > nvim_buf_line_count(bufnr())
     echohl ErrorMsg
-    echom "Could not add links to message id " .. a:message_id .. "!"
+    echom "Could not add link extmarks to message number " .. a:message_number .. "!"
     echohl None
     return -1
   end
@@ -234,21 +235,27 @@ function vimcord#buffer#add_link_extmarks(message_number, extmarks)
   " sometimes on_message and on_message_exit come very close together
   call nvim_buf_clear_namespace(0, luaeval("vimcord.LINKS_NAMESPACE"), start_line, end_line + 1)
 
-  let virt_lines = map(
-        \ a:extmarks,
-        \ { _, v -> insert(v, [repeat(" ", g:vimcord_shift_width), "None"], 0) }
-        \ )
-  call nvim_buf_set_extmark(0,
-        \ luaeval("vimcord.LINKS_NAMESPACE"),
-        \ end_line,
-        \ 0,
-        \ { "virt_lines": virt_lines }
-        \ )
+  if len(a:preview_extmarks) > 0
+    let virt_lines = map(
+          \ a:preview_extmarks,
+          \ { _, v -> insert(v, [repeat(" ", g:vimcord_shift_width), "None"], 0) }
+          \ )
+    call nvim_buf_set_extmark(0,
+          \ luaeval("vimcord.LINKS_NAMESPACE"),
+          \ end_line,
+          \ 0,
+          \ { "virt_lines": virt_lines }
+          \ )
+  endif
 
-  if line(".", window) == line("$", window)
+  for link in a:visited_links
+    call vimcord#link#color_links_in_buffer(link, end_line)
+  endfor
+
+  let window = bufwinid(bufnr())
+  if window !=# -1 && line(".", window) ==# line("$", window)
     normal zb
   end
-  return end_line
 endfunction
 
 function vimcord#buffer#add_media_content(message_number, media_content)

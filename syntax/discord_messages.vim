@@ -65,11 +65,6 @@ for i in range(256)
   exe "hi default discordColor" . i . " guifg=" . s:to_hex(i) . " ctermfg=" . i
 endfor
 
-" Extra
-syn region discordVisitedLink matchgroup=None
-      \  start="\%x1BVL " end=" \%x1B" concealends contained
-hi def link discordVisitedLink discordColor244
-
 " Messages starting with a space are "true" messages
 exe "syn region discordMessage start=+^ + end=+$+ contains=discordColorDefault,discordVisitedLink,"
       \ .. join(map(range(256), "'discordColor' .. v:val"), ",")

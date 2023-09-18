@@ -1,3 +1,8 @@
+-- vimcord.lua
+-- 
+-- Utility functions that wrap Vimscript functions in `nvim_buf_call` and `nvim_win_call`s
+-- In the future, this may be used for keeping track of buffer/channel mappings
+
 if vimcord == nil then vimcord = {} end
 
 local LINKS_NAMESPACE = vim.api.nvim_create_namespace("vimcord-links")
@@ -108,43 +113,16 @@ function vimcord.delete_buffer_message(buffer, discord_message_id)
   end)
 end
 
--- TODO: use extmark highlights instead of syntax
-function vimcord.recolor_visited_links(buffer, unvisited)
-  vim.schedule(function()
-    vim.api.nvim_buf_set_option(buffer, "modifiable", true)
-
-    --fetch the cursor
-    local windows = vim.call("win_findbuf", buffer)
-    local cursor = vim.api.nvim_win_get_cursor(windows[1])
-
-    -- even in vimscript, this would be an execute command, so I'm not torn up about it being here
-    for _, j in pairs(unvisited) do
-      local escape_slashes = j:gsub("/", "\\/")
-      pcall(function()
-        vim.cmd(
-          "keeppatterns %sno/\\(\\%x1B\\)100 \\(" .. escape_slashes ..
-          " \\%x1B\\)/\\1VL \\2/g"
-        )
-      end)
-    end
-
-    --and restore it
-    vim.api.nvim_win_set_cursor(windows[1], cursor)
-
-    vim.api.nvim_buf_set_option(buffer, "modifiable", false)
-  end)
-end
-
 -- TODO: discord_message_id decoupling
-function vimcord.add_link_extmarks(buffer, discord_message_id, extmark_content, media_links)
+function vimcord.add_link_extmarks(buffer, discord_message_id, preview_extmarks, media_links, visited_links)
   vim.schedule(function()
     vim.api.nvim_buf_call(buffer, function()
       local message_number = vim.call("vimcord#discord#get_message_number", discord_message_id)
       if message_number < 0 then return 0 end
       -- extmarks
-      local line_number = vim.call("vimcord#buffer#add_link_extmarks", message_number, extmark_content)
+      vim.call("vimcord#buffer#add_link_extmarks", message_number, preview_extmarks, visited_links)
       -- media content
-      if line_number > 0 then
+      if #media_links > 0 then
         vim.call("vimcord#buffer#add_media_content", message_number, media_links)
       end
     end)

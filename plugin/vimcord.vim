@@ -33,6 +33,7 @@ hi def link VimcordOGDescription Conceal
 hi def link VimcordAdditional NonText
 
 hi def VimcordHighlight cterm=reverse gui=reverse
+hi def VimcordVisitedLink ctermfg=244 guifg=#888888
 
 " Dictionary used for runtime data
 let g:vimcord = {}

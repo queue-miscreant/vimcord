@@ -220,7 +220,6 @@ TODOs
     - Make `<c-g>` and `<a-g>` better
         - Show all "media" (such as previews and opengraph videos) with the latter, not just opengraph images
     - Sorting the main buffer based on message channel id
-    - Show visited links with extmark highlights instead of in-document colors using syntax
     - Closing reply buffer just hides it
 
 - Unplanned - maybe soon?

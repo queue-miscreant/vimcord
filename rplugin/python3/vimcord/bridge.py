@@ -122,14 +122,15 @@ class DiscordBridge:
             unvisited = [l
                 for l in link
                 if l not in self.visited_links and LINK_RE.match(l)]
-            self.visited_links.union(link)
+            self.visited_links.update(link)
         else:
-            raise ValueError("Can only visit links of type string or list!")
+            raise ValueError("Can only visit links from type string or list!")
 
         if unvisited:
-            self.plugin.nvim.lua.vimcord.recolor_visited_links(
-                self._buffer,
-                unvisited
+            self.plugin.nvim.async_call(
+                self.plugin.nvim.api.call_function,
+                "vimcord#link#color_links_in_buffer",
+                link
             )
 
     async def add_link_extmarks(self, message_id, links):
@@ -145,14 +146,14 @@ class DiscordBridge:
         extmark_content = [j for i in formatted_opengraph for j in i[0]]
         media_links = [j for i in formatted_opengraph for j in i[1]]
 
-        if formatted_opengraph:
-            self.plugin.nvim.async_call(
-                lambda x,y,z,w: self.plugin.nvim.lua.vimcord.add_link_extmarks(x,y,z,w),
-                self._buffer,
-                message_id,
-                extmark_content,
-                media_links
-            )
+        self.plugin.nvim.async_call(
+            lambda x,y,z,w,v: self.plugin.nvim.lua.vimcord.add_link_extmarks(x,y,z,w,v),
+            self._buffer,
+            message_id,
+            extmark_content,
+            media_links,
+            [link for link in links if link in self.visited_links]
+        )
 
     # DISCORD CALLBACKS --------------------------------------------------------
     async def on_ready(self):

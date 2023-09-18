@@ -101,3 +101,53 @@ function vimcord#link#open_video(link)
   echo "Playing video..."
   call system(g:vimcord_video_opener . " " . shellescape(a:link) . " &")
 endfunction
+
+function vimcord#link#color_links_in_buffer(link, ...)
+  let start_position = getpos(".")
+  let search_pattern = "\\M\\C" .. substitute(a:link, "/", "\\/", "g")
+
+  " If we don't get a stop column, use the whole buffer
+  if a:0 ==# 0
+    normal gg
+  endif
+
+  let result = -1
+  while 1
+    " If we have a stop column, use it
+    if a:0 >= 1
+      let result = search(search_pattern, "W", a:1)
+    else
+      let result = search(search_pattern, "W")
+    endif
+    if result ==# 0
+      break
+    endif
+
+    let link_extmarks = nvim_buf_get_extmarks(
+          \ 0,
+          \ luaeval("vimcord.LINKS_NAMESPACE"),
+          \ [line(".") - 1, 0],
+          \ [line(".") - 1, -1],
+          \ { "details": 1 })
+    " If we have any extmarks for that already...
+    let highlight_extmarks = filter(
+          \ link_extmarks,
+          \ "v:val[2] == col('.') - 1 && exists('v:val[3].end_col')")
+    " Ignore them
+    if len(highlight_extmarks) > 0
+      continue
+    endif
+
+    call nvim_buf_set_extmark(
+          \ 0,
+          \ luaeval("vimcord.LINKS_NAMESPACE"),
+          \ line(".") - 1,
+          \ col(".") - 1,
+          \ {
+          \   "end_col": min([col(".") + len(a:link), col("$")]) - 1,
+          \   "hl_group": "VimcordVisitedLink"
+          \ })
+  endwhile
+
+  call cursor(start_position[1:])
+endfunction
