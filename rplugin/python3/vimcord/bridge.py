@@ -102,7 +102,6 @@ class DiscordBridge:
     def extra_data(self):
         return [
             { i.id: format_channel(i, raw=True) for i in self.unmuted_channels },
-            self.all_members,
             self._user.id
         ]
 

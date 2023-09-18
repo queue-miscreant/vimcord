@@ -2,57 +2,29 @@ setlocal nonumber
 setlocal wrap
 setlocal linebreak
 setlocal breakindent
-" setlocal completefunc="s:complete_reply"
-exe "setlocal completefunc=" .. expand("<SID>") .. "complete_reply"
 
-function s:complete_reply(findstart, base)
-  " first invocation: find the last "@"
-  if a:findstart ==# 1 && a:base ==# ""
-    let start_pos = getpos(".")
-    normal F@
-    let match_pos = col(".")
-    call cursor(start_pos[1:])
-
-    " No @ found
-    if match_pos == start_pos[2]
-      return -3
-    endif
-    return match_pos
+function s:complete_reply()
+  if !(exists("g:vimcord.reply_target_data.data.server_id"))
+    return ""
   endif
 
-  " second invocations: get members
-  if !(exists("g:vimcord.reply_target_data.data.server_id") && exists("g:vimcord.server_members"))
-    return []
-  endif
+  let prevcomplete = &completeopt
+  set completeopt+=noinsert,noselect
 
-  " XXX: technically we can just query the remote plugin here
   let server_id = g:vimcord["reply_target_data"]["data"]["server_id"]
-  let members = get(g:vimcord["server_members"], server_id, [])
+  let members = VimcordInvokeDiscordAction("get_server_members", server_id)
+  call complete(col("."), members)
 
-  echom members
-  return filter(members, "v:val =~ a:base")
+  let &completeopt = prevcomplete
+
+  return ""
 endfunction
 
-function s:vimcord_reply_tab(backwards)
-  let insert_char = "\<tab>"
-  if pumvisible()
-    if a:backwards
-      let insert_char = "\<c-p>"
-    else
-      let insert_char = "\<c-n>"
-    endif
-  endif
-
-  return insert_char
-endfunction
+let b:complete_reply = function("s:complete_reply")
 
 " Plugin maps
 nmap <silent><buffer> <plug>(vimcord_push_contents) :call vimcord#push_buffer_contents()<cr>
 nmap <silent><buffer> <plug>(vimcord_forget_buffer) :call vimcord#forget_reply_contents()<cr>
-" imap <silent><buffer> <plug>(vimcord_complete_reply) <c-r>=vimcord#complete_reply()<cr>
-
-exe "imap <buffer><silent> <plug>(vimcord_reply_tab) <c-r>=" .. expand("<SID>") .. "vimcord_reply_tab(0)<cr>"
-exe "imap <buffer><silent> <plug>(vimcord_reply_tab_back) <c-r>=" .. expand("<SID>") .. "vimcord_reply_tab(1)<cr>"
 
 " Real maps
 nmap <silent><buffer> <enter> <plug>(vimcord_push_contents)
@@ -62,11 +34,10 @@ nmap <silent><buffer> <c-c> <plug>(vimcord_forget_buffer)
 imap <silent><buffer> <c-c> <esc><plug>(vimcord_forget_buffer)
 nmap <silent><buffer> <esc> <plug>(vimcord_forget_buffer)
 
-imap <buffer> @ @<c-x><c-u>
-imap <buffer> <tab> <plug>(vimcord_reply_tab)
-imap <buffer> <s-tab> <plug>(vimcord_reply_tab_back)
+imap <buffer><silent> <tab> <c-r>= pumvisible() ? "\<lt>c-n>" : "\<lt>tab>"<cr>
+imap <buffer><silent> <s-tab> <c-r>= pumvisible() ? "\<lt>c-p>" : "\<lt>s-tab>"<cr>
 
-" imap <silent><buffer> @ <plug>(vimcord_complete_reply)
+imap <buffer> @ @<c-r>=b:complete_reply()<cr>
 
 " Autocmds
 function s:window_return()
@@ -104,12 +75,9 @@ function s:add_drag_and_drop(position)
   let insert_content = getline(".")[start_position:a:position[2]]
   let filename = trim(insert_content)
 
-  " Konsole inserts filenames with spaces using single quotes.
-  " I assume there are ones out there which use double quotes
-  if filename[0] ==# filename[-1:] && (filename[0] ==# "'" || filename[0] ==# "\"")
-    let filename = filename[1:-2]
-  endif
-  if filereadable(filename)
+  " Assume drag and drop content is shell-escaped already
+  let filename = system("echo " .. filename)
+  if filereadable(filename[:-2])
     " remove the filename we just inserted
     exe "normal \"_d" .. s:last_move_size .. "h"
 
@@ -122,6 +90,7 @@ function s:add_drag_and_drop(position)
 endfunction
 
 augroup discord_reply
+  autocmd!
   autocmd WinLeave <buffer> call vimcord#forget_reply_contents()
   autocmd WinClosed <buffer> call timer_start(0, { -> vimcord#create_reply_window(1) })
   autocmd WinEnter <buffer> call timer_start(0, { -> s:window_return() })

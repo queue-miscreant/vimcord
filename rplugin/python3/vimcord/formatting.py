@@ -39,7 +39,7 @@ def clean_post(bridge, post: discord.Message, no_reply=False):
         reply = extmark_post(bridge, post.referenced_message)
 
     if not content:
-        return links, reply, f" {author}:{post.system_content}"
+        return links, reply, f" {author}: {post.system_content}"
 
     return links, reply, f" {author}:\n{content}"
 

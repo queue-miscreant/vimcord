@@ -5,9 +5,8 @@
 "
 " Also provides function for reply extmark manipulation
 
-function vimcord#discord#add_extra_data(discord_channels_dict, discord_members_dict, user_id)
+function vimcord#discord#add_extra_data(discord_channels_dict, user_id)
   let g:vimcord["channel_names"] = a:discord_channels_dict
-  let g:vimcord["server_members"] = a:discord_members_dict
   let g:vimcord["discord_user_id"] = a:user_id
 endfunction
 

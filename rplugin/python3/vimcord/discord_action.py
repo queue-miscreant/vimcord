@@ -204,3 +204,6 @@ class DiscordAction:
 
     async def try_reconnect(self):
         self.discord.task.connect()
+
+    def get_server_members(self, server_id):
+        return self.bridge.all_members.get(server_id, [])

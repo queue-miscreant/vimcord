@@ -1,3 +1,13 @@
+let s:handlers = {}
+
+function vimcord#action#try_handle(action_name)
+  if exists("s:handlers." .. a:action_name)
+    call s:handlers[a:action_name]()
+    return 1
+  endif
+  return 0
+endfunction
+
 function s:enter_reply_buffer(target_data, buffer_contents)
   " Set status by peeking into target data
   if exists("a:target_data.data.channel_id")
@@ -25,8 +35,6 @@ function s:enter_reply_buffer(target_data, buffer_contents)
   if len(a:buffer_contents) !=# 0
     call setline(1, a:buffer_contents)
   endif
-  " TODO: set completion
-  " TODO: remove completion onwinleave
   startinsert!
 endfunction
 
@@ -104,12 +112,6 @@ function vimcord#action#reconnect()
   call VimcordInvokeDiscordAction("try_reconnect")
 endfunction
 
-
-function! s:complete_channel(arglead, cmdline, cursorpos)
-  " TODO: fuzzier channel search
-  return filter(values(get(g:vimcord, "channel_names", {})), { _, x -> x =~ a:arglead })
-endfunction
-
 function s:echo(message, ...)
   if a:0 >= 1
     exe "echohl " .. a:1
@@ -120,15 +122,55 @@ function s:echo(message, ...)
   echohl None
 endfunction
 
+function! s:remove_vimcord_autocmds()
+  augroup vimcord_open_channel
+    autocmd!
+  augroup end
+endfunction
+
+function! s:update_server_suggestions()
+  if line(".") > 1
+    call deletebufline(bufnr(), 2, "$")
+    normal $
+  endif
+
+  let line = getline(1)
+  let b:vimcord_fuzzy_match_results = line ==# ""
+        \ ? b:vimcord_fuzzy_match
+        \ : matchfuzzy(b:vimcord_fuzzy_match, line)
+  call complete(col("."), b:vimcord_fuzzy_match_results)
+endfunction
+
 function vimcord#action#open_channel() range
   " Get the channel name by name
   " TODO: investigate a better way of doing this (new split, etc)
-  try
-    let channel_name = input("Channel: ", "", "customlist," .. expand("<SID>") .. "complete_channel")
-  catch /Vim:Interrupt/
-    return
-  endtry
+  " Update suggestions when typing channel name
 
+  call s:enter_reply_buffer({
+        \   "data": {},
+        \   "action": "find_discord_channel"
+        \ },
+        \ "")
+  let b:vimcord_fuzzy_match = values(get(g:vimcord, "channel_names", {}))
+  let b:vimcord_fuzzy_match_results = []
+
+  " Option record
+  let b:vimcord_previous_completeopt = &completeopt
+  let b:vimcord_previous_pumheight = &pumheight
+  set completeopt+=noinsert,menuone
+  let &pumheight = g:vimcord_max_suggested_servers
+
+  " Automatic completion/autocommand removal
+  augroup vimcord_open_channel
+    autocmd!
+    autocmd TextchangedI <buffer> call s:update_server_suggestions()
+    autocmd WinLeave <buffer> call s:remove_vimcord_autocmds()
+  augroup end
+endfunction
+
+function s:handlers.find_discord_channel()
+  " Try the first fuzzy result
+  let channel_name = get(b:vimcord_fuzzy_match_results, 0, "")
   if channel_name ==# ""
     return
   endif
@@ -142,14 +184,18 @@ function vimcord#action#open_channel() range
     endif
   endfor
   if channel_id ==# ""
-    call timer_start(0, { -> s:echo("Channel name not found") })
+    echohl ErrorMsg
+    echo "Channel name not found"
+    echohl None
     return
   endif
   echo ""
 
-  call s:enter_reply_buffer({
-        \   "data": { "channel_id": channel_id },
-        \   "action": "message"
-        \ },
-        \ "")
+  call timer_start(0, { ->
+        \   s:enter_reply_buffer({
+        \     "data": { "channel_id": channel_id },
+        \     "action": "message"
+        \   },
+        \   "")
+        \ })
 endfunction

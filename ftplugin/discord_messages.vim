@@ -102,6 +102,7 @@ nmap <buffer> X <Plug>(vimcord_delete_message)
 nmap <buffer> D <Plug>(vimcord_delete_message)
 
 nmap <buffer> A <Plug>(vimcord_enter_channel)
+nmap <buffer> <c-t> <Plug>(vimcord_enter_channel)
 
 nmap <buffer> r <Plug>(vimcord_edit)
 nmap <buffer> R <Plug>(vimcord_edit)

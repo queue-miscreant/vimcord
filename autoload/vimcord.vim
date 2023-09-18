@@ -44,11 +44,15 @@ function vimcord#push_buffer_contents()
           \ "vimcord_uploaded_files")
   catch
   endtry
-  call VimcordInvokeDiscordAction(
-        \ target_data["action"],
-        \ target_data["data"],
-        \ { "content": buffer_contents, "filenames": filenames }
-        \ )
+
+  let try_handle = vimcord#action#try_handle(target_data["action"])
+  if !try_handle
+    call VimcordInvokeDiscordAction(
+          \ target_data["action"],
+          \ target_data["data"],
+          \ { "content": buffer_contents, "filenames": filenames }
+          \ )
+  endif
 
   call vimcord#forget_reply_contents()
   normal Gzb0
@@ -68,10 +72,26 @@ function vimcord#forget_reply_contents()
     endif
   endif
 
-  wincmd p
-
   " Clear the uploaded files
   call nvim_buf_set_var(g:vimcord["reply_buffer"], "vimcord_uploaded_files", [])
+  " Restore fuzzy completion data
+  try
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match")
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match_results")
+    call nvim_set_option(
+          \ "completeopt",
+          \ nvim_buf_get_var(g:vimcord["reply_buffer"], "vimcord_previous_completeopt")
+          \ )
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_previous_pumheight")
+    call nvim_set_option(
+          \ "pumheight",
+          \ nvim_buf_get_var(g:vimcord["reply_buffer"], "vimcord_previous_pumheight")
+          \ )
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_previous_pumheight")
+  catch
+  endtry
+
+  wincmd p
 
   " Delete the reply buffer contents
   call deletebufline(g:vimcord["reply_buffer"], 1, "$")
