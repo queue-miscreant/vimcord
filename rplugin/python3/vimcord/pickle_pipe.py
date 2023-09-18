@@ -18,6 +18,9 @@ log.setLevel("DEBUG")
 class PicklePipeException(Exception):
     '''Exception object passed when pickling errors occur'''
 
+class ForwardedException(Exception):
+    '''Exception passed when a remote await fails. Raises exception on the client.'''
+
 def decode_for_pipe(data):
     unb85 = base64.b85decode(data)
     dilute = gzip.decompress(unb85)
@@ -33,6 +36,8 @@ def convert_return(obj):
     Convert an object into a form suitable for pickling.
     For example, `dict_value`s are not picklable, but `list`s are.
     '''
+    if isinstance(obj, Exception):
+        return ForwardedException(type(obj), str(obj))
     # TODO: or dict-like?
     if isinstance(obj, dict):
         return obj
@@ -106,8 +111,8 @@ class PickleServerProtocol(asyncio.Protocol):
                 self.transport.write(encode_for_pipe(base + [PicklePipeException()]))
 
     def write_error(self, exc):
-        '''Write an exception to the pipe, fewer questions asked'''
-        self.write(["event", "error"], [exc])
+        '''Write an exception's type and message to the pipe, fewer questions asked'''
+        self.write(["event", "error"], [type(exc), str(exc)])
 
     async def _reply(self, unpickled):
         request_id, verb, data = unpickled
@@ -144,10 +149,21 @@ class PickleServerProtocol(asyncio.Protocol):
             return
 
         log.info("Running method %s", verb)
-        ret = base(*args, **kwargs)
+        try:
+            ret = base(*args, **kwargs)
+        except Exception as e:
+            log.info("Caught error when fetching method!")
+            self.write([request_id], [convert_return(e)])
+            return
+
         if asyncio.iscoroutine(ret):
             log.info("Awaiting coroutine")
-            ret = await ret
+            try:
+                ret = await ret
+            except Exception as e:
+                log.info("Caught error when awaiting method!")
+                self.write([request_id], [convert_return(e)])
+                return
 
         self.write([request_id], [convert_return(ret)])
 
@@ -212,7 +228,9 @@ class PickleClientProtocol(asyncio.Protocol):
                     self._call_event(unpickle[1], unpickle[2:])
                 elif (waiting_future := self._waiting_property.get(unpickle[0])) is not None:
                     if isinstance(unpickle[1], PicklePipeException):
-                        waiting_future.cancel()
+                        raise unpickle[1]
+                    if isinstance(unpickle[1], ForwardedException):
+                        waiting_future.set_exception(unpickle[1])
                         continue
                     waiting_future.set_result(unpickle[1])
             except Exception as e:

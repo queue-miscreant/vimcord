@@ -118,6 +118,6 @@ endfunction
 function vimcord#close_all(buffer)
   let windows = win_findbuf(a:buffer)
   for window in windows
-    exe window .. "wincmd q"
+    call nvim_win_close(window, v:true)
   endfor
 endfunction

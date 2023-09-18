@@ -28,7 +28,7 @@ def clean_post(bridge, post: discord.Message, no_reply=False):
         bridge.visited_links.union(links)
 
     # clean up post content
-    content = post.clean_content + ' ' + ' '.join(embeds)
+    content = (post.clean_content + ' ' + ' '.join(embeds)).strip()
 
     author = post.author.display_name
     if hasattr(post.author, "color"):
@@ -38,7 +38,10 @@ def clean_post(bridge, post: discord.Message, no_reply=False):
     if not no_reply and post.referenced_message is not None:
         reply = extmark_post(bridge, post.referenced_message)
 
-    return links, reply, f" {author}:\n" + content.strip()
+    if not content:
+        return links, reply, f" {author}:{post.system_content}"
+
+    return links, reply, f" {author}:\n{content}"
 
 def extmark_post(bridge, post: discord.Message):
     embeds = [i["url"] for i in post.attachments]

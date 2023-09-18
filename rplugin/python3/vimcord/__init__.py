@@ -54,13 +54,13 @@ class Vimcord:
             self.nvim.lua.vimcord.create_window(False, self.bridge._buffer)
             return
 
-        self.bridge = DiscordBridge(self)
+        self.bridge = DiscordBridge(self, discord_username, discord_password)
 
     @pynvim.command("KillDiscord", nargs=0)
     def kill_discord(self):
         '''Close the daemon, all Discord windows, and the socket connection to the daemon.'''
         kill_discord_server(self.socket_path)
-        self.nvim.api.call_function("vimcord#close_all", self.bridge._buffer)
+        self.nvim.api.call_function("vimcord#close_all", [self.bridge._buffer])
         self.bridge.close()
         self.bridge = None
 

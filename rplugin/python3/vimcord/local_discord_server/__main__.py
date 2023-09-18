@@ -20,7 +20,7 @@ def _handle_exception(loop, context):
     # broadcast the error to clients (i.e., so they can tell it to reconnect)
     deletions = []
     for i, protocol in enumerate(CREATED_PROTOCOLS):
-        if protocol.transport.is_closing():
+        if protocol.transport is None or protocol.transport.is_closing():
             deletions.append(i)
             continue
         if (exc := context.get("exception")) is not None:

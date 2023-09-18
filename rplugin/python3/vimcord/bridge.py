@@ -22,11 +22,11 @@ class DiscordBridge:
     '''
     Manage global state related to things other than discord
     '''
-    def __init__(self, plugin, buffer=None):
+    def __init__(self, plugin, discord_username, discord_password):
         self.plugin = plugin
         self.discord_pipe = None
 
-        self._buffer = buffer if buffer is not None else plugin.nvim.lua.vimcord.create_window()
+        self._buffer = plugin.nvim.lua.vimcord.create_window()
 
         self._last_channel = None
         self.all_messages = {}
@@ -38,6 +38,9 @@ class DiscordBridge:
         self._notify = {}
         self._servers = []
         self._private_channels = []
+
+        self._discord_username = discord_username
+        self._discord_password = discord_password
 
         plugin.nvim.loop.create_task(
             self.start_discord_client_server(plugin.socket_path)
@@ -74,8 +77,8 @@ class DiscordBridge:
         if not is_logged_in:
             log.info("Not logged in! Attempting to login and start discord connection...")
             self.discord_pipe.task.start(
-                self.plugin.discord_username,
-                self.plugin.discord_password
+                self._discord_username,
+                self._discord_password
             )
         else:
             is_not_connected = await self.discord_pipe.awaitable.is_closed()
@@ -167,6 +170,15 @@ class DiscordBridge:
                 getattr(message, "server", None),
                 message.channel
             )]
+        for message in unmuted_messages:
+            self.all_messages[message.id] = message
+
+        links_and_messages = [
+            self._prepare_post_for_buffer(message)
+            for message in unmuted_messages
+        ]
+        if not links_and_messages:
+            return
 
         def on_ready_callback():
             log.info("Sending data to vim...")
@@ -175,13 +187,6 @@ class DiscordBridge:
                 self.extra_data
             )
 
-            log.debug(unmuted_messages)
-            links_and_messages = [
-                self._prepare_post_for_buffer(message)
-                for message in unmuted_messages
-            ]
-            if not links_and_messages:
-                return
             id_and_links, unflat_messages = zip(*links_and_messages)
             # send messages to vim
             self.plugin.nvim.lua.vimcord.append_messages_to_buffer(
@@ -301,11 +306,12 @@ class DiscordBridge:
 
     async def on_dm_update(self, dm):
         '''DM discord user status change'''
-        #TODO: direct message updates
+        #TODO: private channel status updates
 
-    async def on_error(self, exc):
+    async def on_error(self, exc_type, exc_message):
         '''On error received from server'''
-        self.plugin.notify(f"Server encountered error: {exc}")
+        self.plugin.notify(f"Server encountered error: {exc_message}")
+        log.info(f"Server encountered error of type {exc_type!r} with message {exc_message!r}")
 
     #---Check if a channel is muted---------------------------------------------
     def is_muted(self, server, channel):
