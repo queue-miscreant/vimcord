@@ -99,9 +99,13 @@ class DiscordBridge:
             for server in self._servers}
 
     @property
+    def unmuted_channel_names(self):
+        return { i.id: format_channel(i, raw=True) for i in self.unmuted_channels }
+
+    @property
     def extra_data(self):
         return [
-            { i.id: format_channel(i, raw=True) for i in self.unmuted_channels },
+            self.unmuted_channel_names,
             self._user.id
         ]
 
@@ -179,11 +183,19 @@ class DiscordBridge:
         if not links_and_messages:
             return
 
+        is_not_connected = await self.discord_pipe.awaitable.is_closed()
+        is_logged_in = await self.discord_pipe.awaitable.is_logged_in()
+
         def on_ready_callback():
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
                 "vimcord#discord#local#add_extra_data",
                 self.extra_data
+            )
+
+            self.plugin.nvim.api.call_function(
+                "vimcord#discord#local#set_connection_state",
+                [is_not_connected, is_logged_in]
             )
 
             id_and_links, unflat_messages = zip(*links_and_messages)
@@ -265,6 +277,8 @@ class DiscordBridge:
         muted = self.is_muted(getattr(post, "server", None), post.channel)
         if muted:
             return
+        self.all_messages[post.id] = post
+
         self.plugin.nvim.async_call(
             self._on_message_edit,
             post,

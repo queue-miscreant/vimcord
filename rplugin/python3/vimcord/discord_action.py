@@ -207,3 +207,22 @@ class DiscordAction:
 
     def get_server_members(self, server_id):
         return self.bridge.all_members.get(server_id, [])
+
+    def get_unmuted_channel_names(self):
+        return self.bridge.unmuted_channel_names
+
+    async def get_connection_state(self):
+        try:
+            is_not_connected = await self.discord.awaitable.is_closed()
+            is_logged_in = await self.discord.awaitable.is_logged_in()
+        except:
+            is_not_connected = True
+            is_logged_in = False
+
+        def set_connection_state():
+            self.plugin.nvim.api.call_function(
+                "vimcord#discord#local#set_connection_state",
+                [is_not_connected, is_logged_in]
+            )
+
+        self.plugin.nvim.async_call(set_connection_state)

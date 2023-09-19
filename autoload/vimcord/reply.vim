@@ -45,7 +45,7 @@ function vimcord#reply#enter_reply_buffer(target_data, buffer_contents, ...)
 
   " Set buffer attributes
   if len(a:buffer_contents) !=# 0
-    call setline(1, a:buffer_contents)
+    call setline(1, split(a:buffer_contents, "\n"))
   endif
   startinsert!
 endfunction

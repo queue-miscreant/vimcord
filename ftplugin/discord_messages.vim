@@ -33,11 +33,42 @@ function s:close_reply_window()
   endif
 endfunction
 
+function s:refresh_connection(...)
+  try
+    call VimcordInvokeDiscordAction("get_connection_state")
+  catch
+    " Errors should only happen when the plugin no longer exists
+    echohl ErrorMsg
+    echom "Could not retrieve connection state! Stopping timer..."
+    echohl None
+
+    call s:stop_connection_timer()
+  endtry
+endfunction
+
+function s:discord_messages_winenter()
+  setlocal nocursorline
+  if !exists("b:vimcord_connection_timer")
+    let b:vimcord_connection_timer = timer_start(
+          \ g:vimcord_connection_refresh_interval_seconds,
+          \ "s:refresh_connection",
+          \ {'repeat': -1})
+  endif
+endfunction
+
+function s:stop_connection_timer()
+  let connection_timer = get(b:, "vimcord_connection_timer", -1)
+  if connection_timer >= 0
+    call timer_stop(connection_timer)
+  endif
+endfunction
+
 augroup discord_messages
   autocmd!
   autocmd TextYankPost <buffer> call s:strip_colors(v:event)
   autocmd WinClosed <buffer> call s:close_reply_window()
-  autocmd WinEnter <buffer> setlocal nocursorline
+  autocmd WinEnter <buffer> call s:discord_messages_winenter()
+  autocmd WinLeave <buffer> call s:stop_connection_timer()
 augroup end
 
 if !(exists("b:vimcord_lines_to_messages") && exists("b:vimcord_messages_to_extra_data"))

@@ -10,6 +10,10 @@ function vimcord#discord#local#add_extra_data(discord_channels_dict, user_id)
   let g:vimcord["discord_user_id"] = a:user_id
 endfunction
 
+function vimcord#discord#local#set_connection_state(not_connected, is_logged_in)
+  let g:vimcord["discord_not_connected"] = a:not_connected
+  let g:vimcord["discord_logged_in"] = a:is_logged_in
+endfunction
 
 function vimcord#discord#local#get_message_number(message_id)
   " call nvim_buf_get_var()

@@ -99,13 +99,13 @@ function! s:update_server_suggestions()
   let b:vimcord_fuzzy_match_results = line ==# ""
         \ ? b:vimcord_fuzzy_match
         \ : matchfuzzy(b:vimcord_fuzzy_match, line)
-  call complete(col("."), b:vimcord_fuzzy_match_results)
+  call complete(1, b:vimcord_fuzzy_match_results)
 endfunction
 
 " Discord server suggestions
 function s:server_suggestions()
-  " TODO: this could be dynamic
-  let b:vimcord_fuzzy_match = values(get(g:vimcord, "channel_names", {}))
+  let b:vimcord_unmuted_channel_names = VimcordInvokeDiscordAction("get_unmuted_channel_names")
+  let b:vimcord_fuzzy_match = values(b:vimcord_unmuted_channel_names)
   let b:vimcord_fuzzy_match_results = []
 
   " Option record
@@ -125,6 +125,7 @@ endfunction
 function vimcord#discord#action#cleanup_server_suggestions()
   " Restore fuzzy completion data
   try
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_unmuted_channel_names")
     call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match")
     call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match_results")
     call nvim_set_option(
@@ -153,27 +154,35 @@ endfunction
 
 function s:find_discord_channel()
   " Try the first fuzzy result
-  let channel_name = get(b:vimcord_fuzzy_match_results, 0, "")
+  let channel_name = getline(1)
+  if index(b:vimcord_fuzzy_match, channel_name) ==# -1
+    let channel_name = get(b:vimcord_fuzzy_match_results, 0, "")
+  endif
+
   if channel_name ==# ""
+    echohl ErrorMsg
+    echo "Channel name not found"
+    echohl None
     return
   endif
 
   " Reverse-lookup for id
   let channel_id = ""
-  for [id, name] in items(get(g:vimcord, "channel_names", {}))
+  for [id, name] in items(b:vimcord_unmuted_channel_names)
     if name ==# channel_name
       let channel_id = id
       break
     endif
   endfor
+
   if channel_id ==# ""
     echohl ErrorMsg
     echo "Channel name not found"
     echohl None
     return
   endif
-  echo ""
 
+  " Wait until we're out of the reply buffer before calling this
   call timer_start(0, { ->
         \   vimcord#reply#enter_reply_buffer({
         \     "data": { "channel_id": channel_id },
@@ -185,3 +194,29 @@ function s:find_discord_channel()
 endfunction
 
 call vimcord#reply#add_handler("find_discord_channel", function("s:find_discord_channel"))
+
+" Statusline display functions -------------------------------------------------
+
+function vimcord#discord#action#show_reply_action()
+  try
+    let action = g:vimcord["reply_target_data"]["action"]
+    if action ==# "do_edit"
+      return "Edit"
+    elseif action ==# "message"
+      return "Message"
+    elseif action ==# "find_discord_channel"
+      return "Channel Name"
+    endif
+  catch
+  endtry
+  return ""
+endfunction
+
+function vimcord#discord#action#show_reply_channel()
+  try
+    let channel_id = g:vimcord["reply_target_data"]["data"]["channel_id"]
+    return g:vimcord["channel_names"][channel_id]
+  catch
+  endtry
+  return ""
+endfunction
