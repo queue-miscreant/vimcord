@@ -5,14 +5,45 @@
 "
 " Also provides function for reply extmark manipulation
 
-function vimcord#discord#local#add_extra_data(discord_channels_dict, user_id)
-  let g:vimcord["channel_names"] = a:discord_channels_dict
-  let g:vimcord["discord_user_id"] = a:user_id
+function vimcord#discord#local#add_extra_data(extra_data)
+  call extend(g:vimcord, a:extra_data)
 endfunction
 
 function vimcord#discord#local#set_connection_state(not_connected, is_logged_in)
   let g:vimcord["discord_not_connected"] = a:not_connected
   let g:vimcord["discord_logged_in"] = a:is_logged_in
+  call vimcord#discord#local#start_connection_timer()
+endfunction
+
+function vimcord#discord#local#start_connection_timer()
+  let connection_timer = get(g:vimcord, "connection_timer", -1)
+  if connection_timer < 0 && exists("g:vimcord.ready") && g:vimcord["ready"]
+    let g:vimcord["connection_timer"] = timer_start(
+          \ g:vimcord_connection_refresh_interval_seconds * 1000,
+          \ "vimcord#discord#local#refresh_connection",
+          \ {'repeat': -1})
+  endif
+endfunction
+
+function vimcord#discord#local#stop_connection_timer()
+  let connection_timer = get(g:vimcord, "connection_timer", -1)
+  if connection_timer >= 0
+    call timer_stop(connection_timer)
+    let g:vimcord["connection_timer"] = -1
+  endif
+endfunction
+
+function vimcord#discord#local#refresh_connection(...)
+  try
+    call VimcordInvokeDiscordAction("get_connection_state")
+  catch
+    " Errors should only happen when the plugin no longer exists
+    echohl ErrorMsg
+    echom "Could not retrieve connection state! Stopping timer..."
+    echohl None
+
+    call vimcord#discord#local#stop_connection_timer()
+  endtry
 endfunction
 
 function vimcord#discord#local#get_message_number(message_id)

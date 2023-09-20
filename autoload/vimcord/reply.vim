@@ -35,6 +35,7 @@ function vimcord#reply#enter_reply_buffer(target_data, buffer_contents, ...)
   endif
   exe target_window .. "wincmd w"
 
+  " Remove filename autocommands
   augroup vimcord_reply_dynamic
     autocmd!
   augroup end
@@ -182,8 +183,9 @@ function s:add_drag_and_drop(position)
   let filename = trim(insert_content)
 
   " Assume drag and drop content is shell-escaped already
-  let filename = system("echo " .. filename)
-  if filereadable(filename[:-2])
+  " Remove null-terminator from echo
+  let filename = system("echo " .. filename)[:-2]
+  if filereadable(filename)
     " remove the filename we just inserted
     exe "normal \"_d" .. s:last_move_size .. "h"
 
@@ -191,7 +193,7 @@ function s:add_drag_and_drop(position)
       let b:vimcord_uploaded_files = []
     endif
     call add(b:vimcord_uploaded_files, filename)
-    echo "Appended file: " .. filename
+    echo "Appended file: '" .. filename .. "'"
   endif
 endfunction
 

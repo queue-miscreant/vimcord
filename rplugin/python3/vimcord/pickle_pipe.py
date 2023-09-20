@@ -1,5 +1,5 @@
 '''
-pickle_server.py
+pickle_pipe.py
 
 A simple client/server protocol which can forward events and respond to
 requests for members and methods.

@@ -93,7 +93,6 @@ function vimcord#buffer#append(discord_message, reply, discord_extra, highlighte
 endfunction
 
 function vimcord#buffer#edit(message_number, discord_message, discord_extra, highlighted)
-  " TODO: message number instead
   let [start_line, end_line] =
         \ vimcord#buffer#lines_by_message_number(a:message_number)
   if start_line > end_line

@@ -75,13 +75,14 @@ K       `k` message             Go to the message above the current one
 
 J       `j` message             Go to the message below the current one
 
-X, D    `d`elete message        Attempts to delete the message under the cursor.
+X, D    `D`elete message        Attempts to delete the message under the cursor.
                               These are shifted characters to unintentional
                               deletions.
 
-A       `a`ppend message        Prompts the user for a channel name, which can
-                              be completed by tabbing. Enters the reply buffer,
-                              targeting the channel if it exists.
+A       `A`ppend message        Prompts the user for a channel name, as in the
+<c-t>                         webapp's ctrl-t shortcut. When an existing
+                              channel is selected, enters the reply buffer
+                              targeting the channel.
 
 <enter> Enter reference       Attempt to find the referenced message in the
                               buffer, then move the cursor to the line
@@ -174,6 +175,21 @@ Whether or not to enable link previews. This mimics content displayed in the
 Discord webapp, but without images.
 
 Default value is 1 (enabled).
+
+
+g:vimcord_max_suggested_servers                         *g:vimcord_max_suggested_servers*
+
+The number of channels to display as suggestions when searching them by name.
+
+Default value is 10.
+
+
+g:vimcord_connection_refresh_interval_seconds           *g:vimcord_connection_refresh_interval_seconds*
+
+Vim queries the plugin for its current Discord connection/login status periodically.
+This is number of seconds between each query.
+
+Default value is 60 (1 minute).
 
 
 g:vimcord_image_opener                                  *g:vimcord_image_opener*

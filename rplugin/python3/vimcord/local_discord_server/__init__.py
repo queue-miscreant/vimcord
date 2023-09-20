@@ -3,6 +3,7 @@ import os
 import os.path
 import signal
 import shlex
+import sys
 import subprocess
 import logging
 
@@ -28,7 +29,7 @@ async def connect_to_daemon(path, log):
         for _ in range(2):
             vimcord_dir = os.path.dirname(vimcord_dir)
         subprocess.Popen(
-            ["python", os.path.dirname(__file__), path],
+            [sys.executable, os.path.dirname(__file__), path],
             env={"PYTHONPATH": vimcord_dir}
         )
 

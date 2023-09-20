@@ -104,10 +104,11 @@ class DiscordBridge:
 
     @property
     def extra_data(self):
-        return [
-            self.unmuted_channel_names,
-            self._user.id
-        ]
+        return {
+            "channel_names": self.unmuted_channel_names,
+            "discord_user_id": self._user.id,
+            "ready": True
+        }
 
     def get_channel_by_name(self, channel_name):
         for channel in self.unmuted_channels:
@@ -190,7 +191,7 @@ class DiscordBridge:
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
                 "vimcord#discord#local#add_extra_data",
-                self.extra_data
+                [self.extra_data]
             )
 
             self.plugin.nvim.api.call_function(

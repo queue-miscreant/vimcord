@@ -3,6 +3,9 @@ setlocal wrap
 setlocal linebreak
 setlocal breakindent
 
+setlocal ignorecase
+setlocal infercase
+
 " Plugin maps
 nmap <silent><buffer> <plug>(vimcord_push_contents) :call vimcord#reply#push_buffer_contents()<cr>
 nmap <silent><buffer> <plug>(vimcord_forget_buffer) :call vimcord#reply#forget_reply_contents()<cr>

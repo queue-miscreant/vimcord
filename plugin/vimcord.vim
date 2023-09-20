@@ -11,11 +11,11 @@ let g:vimcord_discord_password = get(g:, "vimcord_discord_password", "")
 let g:vimcord_dnd_paste_threshold = get(g:, "vimcord_dnd_paste_threshold", 8)
 let g:vimcord_shift_width = max([get(g:, "vimcord_shift_width", 4), 1])
 let g:vimcord_show_link_previews = get(g:, "vimcord_show_link_previews", 1)
-let g:vimcord_max_suggested_servers = get(g:, "vimcord_max_suggested_servers", 10) " DOCME!
+let g:vimcord_max_suggested_servers = get(g:, "vimcord_max_suggested_servers", 10)
 let g:vimcord_connection_refresh_interval_seconds = get(
       \ g:,
       \ "vimcord_connection_refresh_interval_seconds",
-      \ 60) " DOCME!
+      \ 60)
 
 
 " Link open settings
@@ -95,12 +95,15 @@ function VimcordShowScrolled()
 endfunction
 
 function VimcordShowConnection()
+  let ready = get(g:vimcord, "ready", -1)
   let not_connected = get(g:vimcord, "discord_not_connected", -1)
   let logged_in = get(g:vimcord, "discord_logged_in", -1)
-  if not_connected > 0
-    return "Disconnected!"
-  elseif !logged_in
+  if ready <= 0
+    return "Not connected to daemon!"
+  elseif logged_in <= 0
     return "Not logged in!"
+  elseif not_connected > 0
+    return "Disconnected!"
   endif
   return ""
 endfunction
@@ -109,10 +112,9 @@ function! VimcordAirline(...)
   if &filetype == "discord_messages"
     let w:airline_section_a = airline#section#create_left(["vimcord_scrolled"])
     let w:airline_section_b = ""
-    " I don't understand why this needs to be a space to hide "Scratch"
-    let w:airline_section_c = " " 
+    let w:airline_section_c = "Discord"
 
-    let w:airline_section_x = "Discord"
+    let w:airline_section_x = ""
     let w:airline_section_y = ""
     let w:airline_section_z = airline#section#create_right(["vimcord_connection"])
   elseif &filetype == "discord_reply"

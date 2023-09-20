@@ -96,8 +96,8 @@ Keys
 | `i`       | `i`nsert message  | Enters the reply buffer, targeting the channel of the message currently under the cursor
 | `I`       | `I`nsert reply    | Like `i`, but marks the message under the cursor as a reference (i.e., a discord reply)
 | `r`, `R`  | `r`eplace message | Attempts to retrieve the message under the cursor for editing and enters the reply buffer. Does not work if you are not the author of the post.
-| `X`, `D`  | `d`elete message  | Attempts to delete the message under the cursor. These are shifted characters to unintentional deletions.
-| `A`       | `a`ppend message  | Prompts the user for a channel name, which can be completed by tabbing. Enters the reply buffer, targeting the channel if it exists.
+| `X`, `D`  | `D`elete message  | Attempts to delete the message under the cursor. These are shifted characters to unintentional deletions.
+| `A`, `<c-t>` | `A`ppend message  | Prompts the user for a channel name, as in the webapp's ctrl-t shortcut. When an existing channel is selected, enters the reply buffer targeting the channel.
 | `K`       | `k` message       | Go to the message above the current one
 | `J`       | `j` message       | Go to the message below the current one
 | `gx`      | `G`o lin`ks`      | Attempts to open the word under the cursor as a link. Uses the currently-set link openers (see configuration)
@@ -105,8 +105,7 @@ Keys
 | `<a-g>`   | (See above)       | Attempt to open the first link before the current cursor position. Additional media content set on the message is opened, instead of the actual link.
 | `<enter>` | Enter reference   | Attempt to find the referenced message in the buffer, then move the cursor to the line containing it
 
-Note: after "entering" the reply buffer, you will be in insert mode in its
-window.
+Note: after "entering" the reply buffer, you will be in insert mode in its window.
 
 
 ### Reply buffer
@@ -159,6 +158,21 @@ Whether or not to enable link previews. This mimics content displayed in the
 Discord webapp, but without images.
 
 Default value is 1 (enabled).
+
+
+### `g:vimcord_max_suggested_servers`
+
+The number of channels to display as suggestions when searching them by name.
+
+Default value is 10.
+
+
+### `g:vimcord_connection_refresh_interval_seconds`
+
+Vim queries the plugin for its current Discord connection/login status periodically.
+This is number of seconds between each query.
+
+Default value is 60 (1 minute).
 
 
 ### `g:vimcord_image_opener`
@@ -220,10 +234,10 @@ TODOs
     - Make `<c-g>` and `<a-g>` better
         - Show all "media" (such as previews and opengraph videos) with the latter, not just opengraph images
     - Sorting the main buffer based on message channel id
+        - Difficult because of extmarks
     - Closing reply buffer just hides it
 
 - Unplanned - maybe soon?
-    - Occasionally, the discord connection returns a 443 or similar error silently
     - Display user connection status (sign column tricks?)
     - Separate discord content out from "normal" reply window/message window pipeline (partially done)
 
