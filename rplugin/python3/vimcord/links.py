@@ -193,11 +193,15 @@ class SpecialOpeners:
                     title if isinstance(title, str) else title[0],
                     "VimcordOGTitle"
                 ]])
-        if description is not None:
-            ret.append([[
-                description if isinstance(title, str) else title[0],
-                "VimcordOGDescription"
-            ]])
+        if isinstance(description, str):
+            description = description.split("\n")
+        if isinstance(description, list):
+            ret.extend([
+                [[
+                    i.strip().rstrip(),
+                    "VimcordOGDescription"
+                ]]
+            for i in description])
         # media content
         return ret, unwrap_media([image, video])
 

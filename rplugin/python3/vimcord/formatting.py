@@ -20,7 +20,7 @@ def ellipsize(string, width):
         return string[:width-1] + "…"
     return string
 
-def clean_post(bridge, post: discord.Message, no_reply=False):
+def clean_post(bridge, post: discord.Message, no_reply=False, last_author=None):
     embeds = [i["url"] for i in post.attachments]
     links = LINK_RE.findall(post.clean_content) + embeds
     #pre-visit all links made by me
@@ -41,6 +41,8 @@ def clean_post(bridge, post: discord.Message, no_reply=False):
     if not content:
         return links, reply, f" {author}: {post.system_content}"
 
+    if post.author == last_author and not reply:
+        return links, reply, f" \n{content}"
     return links, reply, f" {author}:\n{content}"
 
 def extmark_post(bridge, post: discord.Message):

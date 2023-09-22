@@ -28,8 +28,12 @@ class DiscordBridge:
 
         self._buffer = plugin.nvim.lua.vimcord.create_window()
 
-        self._last_channel = None
+        self._last_post = None
+        # Map from post id to post object
+        # `...last_author` author is a map from post id to the last author at the time the post was made,
+        # which is obviously inefficient and terrible, but doesn't mess with all_messages
         self.all_messages = {}
+        self.all_messages_last_author = {}
         self.visited_links = set()
 
         # server properties that need refreshed rarely, but get used for unmuted channels/is muted
@@ -174,8 +178,6 @@ class DiscordBridge:
                 getattr(message, "server", None),
                 message.channel
             )]
-        for message in unmuted_messages:
-            self.all_messages[message.id] = message
 
         links_and_messages = [
             self._prepare_post_for_buffer(message)
@@ -226,8 +228,6 @@ class DiscordBridge:
         muted = self.is_muted(getattr(post, "server", None), post.channel)
         if muted or post.id in self.all_messages:
             return
-        self.all_messages[post.id] = post
-
         self.plugin.nvim.async_call(
             self._append_messages_to_buffer,
             *self._prepare_post_for_buffer(post)
@@ -245,8 +245,7 @@ class DiscordBridge:
     def _prepare_post_for_buffer(self, post):
         '''On message callback, when vim is available'''
         ret = []
-        if self._last_channel != post.channel:
-            self._last_channel = post.channel
+        if self._last_post is not None and self._last_post.channel != post.channel:
             ret.append((
                 [format_channel(post.channel)],
                 [],
@@ -256,8 +255,9 @@ class DiscordBridge:
                 },
                 False,
             ))
+        last_author = None if self._last_post is None else self._last_post.author
 
-        links, reply, message = clean_post(self, post)
+        links, reply, message = clean_post(self, post, last_author=last_author)
         if message.split("\n") == []:
             log.debug("DETECTED BAD MESSAGE CONTENTS: %s in channel %s", repr(post.content), str(post.channel))
 
@@ -272,6 +272,10 @@ class DiscordBridge:
             },
             self._user.id in [i.id for i in post.mentions],
         ))
+        self._last_post = post
+        self.all_messages[post.id] = post
+        self.all_messages_last_author[post.id] = last_author
+
         return (post.id, links), ret
 
     async def on_message_edit(self, _, post):
@@ -279,8 +283,6 @@ class DiscordBridge:
         muted = self.is_muted(getattr(post, "server", None), post.channel)
         if muted:
             return
-        self.all_messages[post.id] = post
-
         self.plugin.nvim.async_call(
             self._on_message_edit,
             post,
@@ -288,7 +290,8 @@ class DiscordBridge:
 
     def _on_message_edit(self, post):
         '''On message edit callback, when vim is available'''
-        links, _, message = clean_post(self, post, no_reply=True)
+        last_author = self.all_messages_last_author.get(post.id)
+        links, _, message = clean_post(self, post, no_reply=True, last_author=last_author)
         as_reply = extmark_post(self, post)
         self.plugin.nvim.lua.vimcord.edit_buffer_message(
             self._buffer,
@@ -303,6 +306,8 @@ class DiscordBridge:
             },
             self._user.id in [i.id for i in post.mentions],
         )
+        self.all_messages[post.id] = post
+
         if links and self.plugin.do_link_previews:
             self.plugin.nvim.loop.create_task(
                 self.add_link_extmarks(post.id, links)
