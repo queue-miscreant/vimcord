@@ -1,53 +1,105 @@
 import asyncio
-from functools import lru_cache
+from functools import lru_cache, partial
 from http.client import HTTPException    #for catching IncompleteRead
 from urllib.error import HTTPError, URLError
-from urllib.request import urlopen, Request
 from html import unescape
-from lxml.html import parse as html_parse
+from lxml.html import fromstring as html_parse
 from lxml.etree import HTMLParser #pylint: disable=no-name-in-module
 import re
 import logging
 
+requests = None
+
+try:
+    import requests
+except ImportError:
+    from urllib.request import urlopen, Request
+
+    class RequestsMock:
+        def __init__(self, response):
+            self.content = response.read()
+            self.headers = response.headers
+
+        @classmethod
+        def get(cls, url, data=None, **params):
+            '''
+            Minimal `requests.get` implementation.
+            Used here as a drop-in replacement with fewer features.
+            '''
+            request = Request(url, **params, method="GET")
+            if data is None:
+                return cls(urlopen(request))
+            return cls(urlopen(request, data))
+
+        @classmethod
+        def head(cls, url, data=None, **params):
+            '''
+            Minimal `requests.head` implementation.
+            Used here as a drop-in replacement with fewer features.
+            '''
+            request = Request(url, **params, method="HEAD")
+            if data is None:
+                return cls(urlopen(request))
+            return cls(urlopen(request, data))
+
+    requests = RequestsMock
+
 log = logging.getLogger(__name__)
 log.setLevel("DEBUG")
 
+DEFAULT_ENCODING = "utf-8"
 LINK_RE = re.compile("(https?://.+?\\.[^`\\s]+)")
-UTF8_PARSER = HTMLParser(encoding='utf-8')
 
 class LinkEmptyException(Exception):
     '''vimcord.links exception for catching empty curl results'''
 
-def open_and_parse_meta(link):
+def open_and_parse_meta(link, encoding, user_agent):
     '''Collect a list of all meta tags from the page at a URL'''
-    html = urlopen(link)
-    if not html:
+    if user_agent is None:
+        response = requests.get(link, headers={ "User-Agent": "curl" })
+    else:
+        response = requests.get(link, headers={ "User-Agent": user_agent })
+
+    if not response.content:
         raise LinkEmptyException(
-            f"Curl failed for {link.full_url if isinstance(link, Request) else link}"
+            f"Curl failed for {link}"
         )
 
     full = []
-    for meta_tag in html_parse(html, parser=UTF8_PARSER).iterfind(".//meta"):
+    parser = HTMLParser(encoding=encoding)
+    for meta_tag in html_parse(response.content, parser=parser).iterfind(".//meta"):
         full.append(meta_tag.attrib)
+
     return full
 
+def get_content_type(link, user_agent):
+    if user_agent is None:
+        response = requests.head(link, headers={ "User-Agent": "curl" })
+    else:
+        response = requests.head(link, headers={ "User-Agent": user_agent })
+
+    encoding = DEFAULT_ENCODING
+    content_type_data = response.headers.get("Content-Type", "text/html").split(";")
+    charset = next(
+        filter(lambda x: x.find("charset=") != -1, content_type_data),
+        None
+    )
+    if charset is not None:
+        encoding = charset.split("=")[1]
+
+    return content_type_data[0], encoding
+
+#TODO: mediawiki
 @lru_cache(maxsize=128)
-def _get_opengraph(link, *args):
+def _get_opengraph(link, *args, user_agent=None):
     '''`get_opengraph` backend. Handles extra caching, but is intended to be run in a thread pool'''
     full = {}
-    no_head = False
-    if isinstance(link, str):
-        request = Request(link, method="HEAD", headers={ "User-Agent": "curl" })
-        response = urlopen(request)
-        if not response:
-            no_head = True
-        else:
-            # don't bother curling again if this isn't an html page
-            content = response.headers.get("Content-Type")
-            no_head = content.find("text/html") == -1
 
-    if not no_head:
-        for meta_tag in open_and_parse_meta(link):
+    content_type, encoding = get_content_type(link, user_agent)
+    url = link
+
+    if content_type == "text/html":
+        for meta_tag in open_and_parse_meta(link, encoding, user_agent):
             prop = meta_tag.get("property")
             if not prop or not prop.startswith("og:"):
                 continue
@@ -62,15 +114,22 @@ def _get_opengraph(link, *args):
             if not isinstance(prev, list):
                 full[prop] = [prev]
             full[prop].append(content)
+    # MIME-based pseudo-opengraph
+    elif content_type.startswith("image/"):
+        full["image"] = url
+    elif content_type.startswith("video/"):
+        full["video"] = url
+    elif content_type.startswith("audio/"):
+        full["audio"] = url
 
-    log.debug("Got opengraph: %s", full)
+    log.info("Got opengraph: %s", full)
     if not args:
         return full
     if len(args) == 1:
         return full[args[0]]        #never try 1-tuple assignment
     return [full[i] if i in full else None for i in args]    #tuple unpacking
 
-async def get_opengraph(link, *args, loop=None):
+async def get_opengraph(link, *args, user_agent=None, loop=None):
     '''
     Awaitable OpenGraph data, with HTML5 entities converted into unicode.
     If a tag repeats (like image), the value will be a list. Returns dict if no
@@ -79,7 +138,7 @@ async def get_opengraph(link, *args, loop=None):
     '''
     if loop is None:
         loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _get_opengraph, link, *args)
+    return await loop.run_in_executor(None, lambda: _get_opengraph(link, *args, user_agent=None))
 
 def unwrap_media(media_list):
     ret = []
@@ -93,6 +152,7 @@ def unwrap_media(media_list):
 class SpecialOpeners:
     OPENERS = {
         "twitter": re.compile(r"twitter\.com/.+/status"),
+        "musk_twitter": re.compile(r"x\.com/.+/status"),
         "tenor": re.compile("tenor.com/(view)?"),
         "discord": re.compile("discord.com/channels"),
     }
@@ -100,7 +160,7 @@ class SpecialOpeners:
     @classmethod
     def attempt(cls, link):
         for opener, regex in cls.OPENERS.items():
-            log.debug("Trying opener %s", opener)
+            log.info("Trying opener %s", opener)
             if regex.search(link):
                 return getattr(cls, opener)(link)
         return None
@@ -108,7 +168,7 @@ class SpecialOpeners:
     @staticmethod
     async def title_and_description(link):
         # TODO: whitelist/blacklist links
-        log.debug("Using default opener!")
+        log.info("Using default opener!")
         ret = []
 
         site_name, title, description, image, video = await get_opengraph(
@@ -141,18 +201,23 @@ class SpecialOpeners:
         # media content
         return ret, unwrap_media([image, video])
 
+    @classmethod
+    async def musk_twitter(cls, link):
+        await cls.twitter(link.replace("x.com", "twitter.com"))
+
     @staticmethod
     async def twitter(link):
         # open through vxtwitter for opengraph
-        re.sub("(https?://)(www.|mobile.|vx)?(twitter)", "\\1fx\\2", link)
+        link = re.sub("(https?://)(www.|mobile.|vx)?(twitter)", "\\1fx\\3", link)
 
         # title, image, video, desc
         title, description, images, video = await get_opengraph(
-            Request(link, headers={"User-Agent": "Twitterbot"}),
+            link,
             "title",
             "description",
             "image",
-            "video"
+            "video",
+            user_agent="Twitterbot"
         )
 
         who = re.sub("on (Twitter|X)", "", title or "")
@@ -185,7 +250,10 @@ class SpecialOpeners:
     async def discord(link):
         return [], []
 
-async def get_link_content(link, notify_func=lambda x: None):
+def _dummy_notify(message, level):
+    pass
+
+async def get_link_content(link, notify_func=_dummy_notify):
     try:
         if (coro := SpecialOpeners.attempt(link)) is not None:
             return await coro

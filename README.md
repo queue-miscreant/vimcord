@@ -43,6 +43,8 @@ Requires the following Python packages:
 The following programs are the default openers for media content.
 Different ones can be used by the user, so they are not strictly required.
 
+- Python:
+    - requests
 - mpv
 - feh
 

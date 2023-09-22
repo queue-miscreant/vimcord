@@ -181,8 +181,6 @@ class DiscordBridge:
             self._prepare_post_for_buffer(message)
             for message in unmuted_messages
         ]
-        if not links_and_messages:
-            return
 
         is_not_connected = await self.discord_pipe.awaitable.is_closed()
         is_logged_in = await self.discord_pipe.awaitable.is_logged_in()
@@ -198,6 +196,9 @@ class DiscordBridge:
                 "vimcord#discord#local#set_connection_state",
                 [is_not_connected, is_logged_in]
             )
+
+            if not links_and_messages:
+                return
 
             id_and_links, unflat_messages = zip(*links_and_messages)
             # send messages to vim
