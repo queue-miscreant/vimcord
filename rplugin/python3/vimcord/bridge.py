@@ -255,7 +255,7 @@ class DiscordBridge:
                 },
                 False,
             ))
-        last_author = None if self._last_post is None else self._last_post.author
+        last_author = None if self._last_post is None or self._last_post.channel != post.channel else self._last_post.author
 
         links, reply, message = clean_post(self, post, last_author=last_author)
         if message.split("\n") == []:

@@ -28,7 +28,7 @@ def clean_post(bridge, post: discord.Message, no_reply=False, last_author=None):
         bridge.visited_links.union(links)
 
     # clean up post content
-    content = (post.clean_content + ' ' + ' '.join(embeds)).strip()
+    content = (post.clean_content + '\n' + ' '.join(embeds)).strip()
 
     author = post.author.display_name
     if hasattr(post.author, "color"):
