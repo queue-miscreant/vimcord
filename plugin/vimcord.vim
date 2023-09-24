@@ -84,18 +84,8 @@ command! -nargs=0 DiscordLogin call timer_start(0, { -> VimcordLogin() })
 
 " Airline support
 " XXX: Investigate other status line plugins
-function VimcordShowScrolled()
-  let cursor = nvim_win_get_cursor(0)
-  let buf = nvim_win_get_buf(0)
-
-  if cursor ==# [nvim_buf_line_count(buf), 0]
-    return ""
-  endif
-  return "Scrolled"
-endfunction
-
 function VimcordShowConnection()
-  let ready = get(g:vimcord, "ready", -1)
+  let ready = get(g:vimcord, "discord_ready", -1)
   let not_connected = get(g:vimcord, "discord_not_connected", -1)
   let logged_in = get(g:vimcord, "discord_logged_in", -1)
   if ready <= 0
@@ -131,7 +121,7 @@ endfunction
 try
   call airline#add_statusline_func('VimcordAirline')
   call airline#add_inactive_statusline_func('VimcordAirline')
-  call airline#parts#define_function('vimcord_scrolled', "VimcordShowScrolled")
+  call airline#parts#define_function('vimcord_scrolled', "vimcord#buffer#scrolled_message")
   call airline#parts#define_function('vimcord_connection', "VimcordShowConnection")
   call airline#parts#define_function('vimcord_action', "vimcord#discord#action#show_reply_action")
   call airline#parts#define_function('vimcord_channel', "vimcord#discord#action#show_reply_channel")

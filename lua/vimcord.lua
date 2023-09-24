@@ -65,7 +65,7 @@ function vimcord.append_messages_to_buffer(buffer, discord_messages)
     local windows = vim.call("win_findbuf", buffer)
     for i = 1, #windows do
       vim.api.nvim_win_call(windows[i], function()
-        vim.call("vimcord#scroll_cursor", line_count)
+        vim.call("vimcord#buffer#scroll_cursor", line_count)
       end)
     end
   end)
@@ -90,7 +90,7 @@ function vimcord.edit_buffer_message(buffer, discord_message, as_reply, discord_
       local windows = vim.call("win_findbuf", buffer)
       for i = 1, #windows do
         vim.api.nvim_win_call(windows[i], function()
-          vim.call("vimcord#scroll_cursor", #discord_message)
+          vim.call("vimcord#buffer#scroll_cursor", #discord_message)
         end)
       end
     end

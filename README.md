@@ -100,6 +100,7 @@ Keys
 | `r`, `R`  | `r`eplace message | Attempts to retrieve the message under the cursor for editing and enters the reply buffer. Does not work if you are not the author of the post.
 | `X`, `D`  | `D`elete message  | Attempts to delete the message under the cursor. These are shifted characters to unintentional deletions.
 | `A`, `<c-t>` | `A`ppend message  | Prompts the user for a channel name, as in the webapp's ctrl-t shortcut. When an existing channel is selected, enters the reply buffer targeting the channel.
+| `gW`      | `g`et `W`hen      | Displays the post time of the message under the cursor
 | `K`       | `k` message       | Go to the message above the current one
 | `J`       | `j` message       | Go to the message below the current one
 | `gx`      | `G`o lin`ks`      | Attempts to open the word under the cursor as a link. Uses the currently-set link openers (see configuration)
@@ -242,6 +243,7 @@ TODOs
 - Unplanned - maybe soon?
     - Display user connection status (sign column tricks?)
     - Separate discord content out from "normal" reply window/message window pipeline (partially done)
+    - Message deletion doesn't affect the first line of a message (requires the buffer knowing about Discord)
 
 - Future work
     - Per-channel buffers: keep main accumulator, but extras can be opened (especially for muted channels)

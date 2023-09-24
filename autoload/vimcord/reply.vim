@@ -84,7 +84,7 @@ function vimcord#reply#push_buffer_contents()
   endif
 
   call vimcord#reply#forget_reply_contents()
-  normal Gzb0
+  normal Gzb0KJ
 endfunction
 
 function vimcord#reply#forget_reply_contents()

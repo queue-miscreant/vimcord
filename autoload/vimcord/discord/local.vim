@@ -9,15 +9,17 @@ function vimcord#discord#local#add_extra_data(extra_data)
   call extend(g:vimcord, a:extra_data)
 endfunction
 
-function vimcord#discord#local#set_connection_state(not_connected, is_logged_in)
+function vimcord#discord#local#set_connection_state(ready, not_connected, is_logged_in)
+  let g:vimcord["discord_ready"] = a:ready
   let g:vimcord["discord_not_connected"] = a:not_connected
   let g:vimcord["discord_logged_in"] = a:is_logged_in
+  redrawstatus
   call vimcord#discord#local#start_connection_timer()
 endfunction
 
 function vimcord#discord#local#start_connection_timer()
   let connection_timer = get(g:vimcord, "connection_timer", -1)
-  if connection_timer < 0 && exists("g:vimcord.ready") && g:vimcord["ready"]
+  if connection_timer < 0 && exists("g:vimcord.discord_ready") && g:vimcord["discord_ready"]
     let g:vimcord["connection_timer"] = timer_start(
           \ g:vimcord_connection_refresh_interval_seconds * 1000,
           \ "vimcord#discord#local#refresh_connection",

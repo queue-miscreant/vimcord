@@ -63,6 +63,12 @@ function! s:scroll_message(direction)
   endwhile
 endfunction
 
+function! s:show_message_time()
+  let message_number = b:vimcord_lines_to_messages[line(".") - 1]
+  let message_data = b:vimcord_messages_to_extra_data[message_number]
+  echo get(message_data, "timestamp", "No time found")
+endfunction
+
 " Plugin keys
 nnoremap <silent><buffer> <Plug>(vimcord_open_reply)
       \ :<c-u>.call vimcord#discord#action#open_reply(0)<cr>
@@ -100,6 +106,9 @@ nnoremap <silent><buffer> <Plug>(vimcord_message_above)
 nnoremap <silent><buffer> <Plug>(vimcord_message_below)
       \ :<c-u>call <SID>scroll_message("j")<cr>
 
+nnoremap <silent><buffer> <Plug>(vimcord_message_when)
+      \ :<c-u>call <SID>show_message_time()<cr>
+
 " Actual keymaps
 nmap <buffer> i <Plug>(vimcord_open_reply)
 nmap <buffer> I <Plug>(vimcord_open_direct_reply)
@@ -115,6 +124,8 @@ nmap <buffer> R <Plug>(vimcord_edit)
 
 nmap <buffer> K <Plug>(vimcord_message_above)
 nmap <buffer> J <Plug>(vimcord_message_below)
+
+nmap <buffer> gW <Plug>(vimcord_message_when)
 
 nmap <buffer> gx <Plug>(vimcord_open_under_cursor)
 nmap <buffer> <c-g> <Plug>(vimcord_open_last_link)

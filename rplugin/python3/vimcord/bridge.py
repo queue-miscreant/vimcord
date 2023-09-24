@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import logging
 import time
 
@@ -9,6 +10,15 @@ from vimcord.links import get_link_content, LINK_RE
 
 log = logging.getLogger(__name__)
 log.setLevel("INFO")
+
+def utc_timestamp_to_iso(timestamp):
+    # iso_format = timestamp.astimezone(datetime.UTC).isoformat(' ', timespec="seconds")
+    current_timezone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
+    local_time = datetime.datetime(*timestamp.timetuple()[:-2], datetime.UTC).astimezone(current_timezone)
+    iso_format = local_time.isoformat(" ", timespec="seconds").split(" ")
+    # remove timezone
+    iso_format[1] = iso_format[1].split("+")[0].split("-")[0]
+    return " ".join(iso_format)
 
 def is_current(timestr):
     '''Retrieves whether the date encoded by the time string is in the future'''
@@ -60,6 +70,7 @@ class DiscordBridge:
 
     async def start_discord_client_server(self, path):
         '''Spawn a local discord server as a daemon and set the discord pipe object'''
+        # TODO: set discord_ready here
         _, self.discord_pipe = await local_discord_server.connect_to_daemon(path, log)
 
         # bind events
@@ -78,6 +89,7 @@ class DiscordBridge:
         whether a connection has been established.
         '''
         is_logged_in = await self.discord_pipe.awaitable.is_logged_in()
+        is_not_connected = await self.discord_pipe.awaitable.is_closed()
         if not is_logged_in:
             log.info("Not logged in! Attempting to login and start discord connection...")
             self.discord_pipe.task.start(
@@ -85,12 +97,17 @@ class DiscordBridge:
                 self._discord_password
             )
         else:
-            is_not_connected = await self.discord_pipe.awaitable.is_closed()
             if is_not_connected:
                 log.info("Not connected to discord! Attempting to reconnect...")
                 self.discord_pipe.task.connect()
             else:
                 self.plugin.nvim.loop.create_task(self.on_ready())
+
+        self.plugin.nvim.async_call(
+            self.plugin.nvim.api.call_function,
+            "vimcord#discord#local#set_connection_state",
+            [True, is_not_connected, is_logged_in]
+        )
 
     async def close(self):
         self.discord_pipe.transport.close()
@@ -108,10 +125,9 @@ class DiscordBridge:
 
     @property
     def extra_data(self):
+        '''Data to set in g:vimcord'''
         return {
-            "channel_names": self.unmuted_channel_names,
             "discord_user_id": self._user.id,
-            "ready": True
         }
 
     def get_channel_by_name(self, channel_name):
@@ -184,19 +200,11 @@ class DiscordBridge:
             for message in unmuted_messages
         ]
 
-        is_not_connected = await self.discord_pipe.awaitable.is_closed()
-        is_logged_in = await self.discord_pipe.awaitable.is_logged_in()
-
         def on_ready_callback():
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
                 "vimcord#discord#local#add_extra_data",
                 [self.extra_data]
-            )
-
-            self.plugin.nvim.api.call_function(
-                "vimcord#discord#local#set_connection_state",
-                [is_not_connected, is_logged_in]
             )
 
             if not links_and_messages:
@@ -268,7 +276,8 @@ class DiscordBridge:
                 "message_id": post.id,
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
-                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
+                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None),
+                "timestamp": utc_timestamp_to_iso(post.timestamp)
             },
             self._user.id in [i.id for i in post.mentions],
         ))
@@ -302,7 +311,8 @@ class DiscordBridge:
                 "message_id": post.id,
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
-                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None)
+                "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None),
+                "timestamp": utc_timestamp_to_iso(post.timestamp)
             },
             self._user.id in [i.id for i in post.mentions],
         )

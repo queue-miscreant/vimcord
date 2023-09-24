@@ -84,11 +84,14 @@ A       `A`ppend message        Prompts the user for a channel name, as in the
                               channel is selected, enters the reply buffer
                               targeting the channel.
 
+gW      `g`et `W`hen              Displays the post time of the message under
+                              the cursor
+
 <enter> Enter reference       Attempt to find the referenced message in the
                               buffer, then move the cursor to the line
                               containing it.
 
-gx      `G`o lin`ks`              Attempts to open the word under the cursor as
+gx      `g`o lin`ks`              Attempts to open the word under the cursor as
                               a link. Uses the currently-set link openers
                               (see |g:vimcord_image_opener| and
                               |g:vimcord_video_opener|).

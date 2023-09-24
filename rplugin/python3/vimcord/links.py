@@ -10,10 +10,14 @@ import logging
 
 requests = None
 
+log = logging.getLogger(__name__)
+log.setLevel("DEBUG")
+
 try:
     import requests
 except ImportError:
     from urllib.request import urlopen, Request
+    log.error("Could not import requests! implementing fallback.")
 
     class RequestsMock:
         def __init__(self, response):
@@ -37,15 +41,14 @@ except ImportError:
             Minimal `requests.head` implementation.
             Used here as a drop-in replacement with fewer features.
             '''
+            if "allow_redirects" in params:
+                del params["allow_redirects"]
             request = Request(url, **params, method="HEAD")
             if data is None:
                 return cls(urlopen(request))
             return cls(urlopen(request, data))
 
     requests = RequestsMock
-
-log = logging.getLogger(__name__)
-log.setLevel("DEBUG")
 
 DEFAULT_ENCODING = "utf-8"
 LINK_RE = re.compile("(https?://.+?\\.[^`\\s]+)")
@@ -74,9 +77,9 @@ def open_and_parse_meta(link, encoding, user_agent):
 
 def get_content_type(link, user_agent):
     if user_agent is None:
-        response = requests.head(link, headers={ "User-Agent": "curl" })
+        response = requests.head(link, headers={ "User-Agent": "curl" }, allow_redirects=1)
     else:
-        response = requests.head(link, headers={ "User-Agent": user_agent })
+        response = requests.head(link, headers={ "User-Agent": user_agent }, allow_redirects=1)
 
     encoding = DEFAULT_ENCODING
     content_type_data = response.headers.get("Content-Type", "text/html").split(";")

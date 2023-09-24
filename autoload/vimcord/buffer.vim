@@ -252,11 +252,89 @@ function vimcord#buffer#add_link_extmarks(message_number, preview_extmarks, visi
   endfor
 
   let window = bufwinid(bufnr())
-  if window !=# -1 && line(".", window) ==# line("$", window)
-    normal zb
+  if window !=# -1 && !vimcord#buffer#is_scrolled({ "window": window })
+    normal Gzb0KJ
   end
 endfunction
 
 function vimcord#buffer#add_media_content(message_number, media_content)
   let b:vimcord_messages_to_extra_data[a:message_number]["media_content"] = a:media_content
+endfunction
+
+" Check whether the message at the current line is the same as the last one in
+" the buffer. A dict can be optionally given as a single argument, with the
+" following keys:
+" 
+" "window": The window ID to use, instead of the current window
+" "error": Whether to display an error on failure. Defaults to 1
+" "target_line": The line to use as the 'current' line instead
+function vimcord#buffer#is_scrolled(...)
+  let show_error = 1
+  let window = 0
+  let line_number = line(".")
+  let last_line = line("$")
+  if a:0 >=# 1
+    let window = get(a:1, "window", window)
+    let show_error = get(a:1, "error", show_error)
+
+    if window !=# 0
+      let line_number = line(".", window)
+      let last_line = line("$", window)
+    endif
+
+    let line_number = min([get(a:1, "target_line", line_number), last_line])
+  endif
+
+  if !exists("b:vimcord_lines_to_messages")
+    if show_error
+      echoerr "Cannot check if scrolled: invalid buffer"
+    endif
+    return 0
+  endif
+
+  if len(b:vimcord_lines_to_messages) < line_number
+    return 0
+  endif
+
+  let current_message = b:vimcord_lines_to_messages[line_number - 1]
+  let last_message = b:vimcord_lines_to_messages[last_line - 1]
+
+  return current_message !=# last_message
+endfunction
+
+function vimcord#buffer#scrolled_message()
+  return vimcord#buffer#is_scrolled({ "error": 0 }) ? "Scrolled" : ""
+endfunction
+
+
+" Try to scroll the window after adding a certain number of lines (lines_added)
+" If the added lines would make the window "not scrolled", then places the
+" buffer at the top of the last message.
+" Otherwise, attempts to scroll down single lines until the last line is
+" visible, or the cursor is at the top of the screen.
+function vimcord#buffer#scroll_cursor(lines_added)
+  " Scroll cursor if we were at the bottom before adding lines
+  if !vimcord#buffer#is_scrolled({ "target_line": line(".") + a:lines_added + 1 }) && !&cursorline
+    normal Gzb0KJ
+    return
+  endif
+
+  " Check that prior to the addition, the last line was visible
+  if line("w$") + a:lines_added !=# line("$")
+    return
+  endif
+
+  " until we're scrolled upward
+  while line("w$") !=# line("$")
+    " Save the window position
+    let window_position = winsaveview()
+    " Scroll down one line
+    exe "normal \<c-e>"
+    " Cursor was at the top of the screen
+    if line(".") !=# window_position["lnum"]
+      " Reset and return
+      call winrestview(window_position)
+      return
+    endif
+  endwhile
 endfunction
