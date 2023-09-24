@@ -68,6 +68,17 @@ class DiscordBridge:
         self._servers = await self.discord_pipe.awaitable.servers()
         self._private_channels = await self.discord_pipe.awaitable.private_channels()
 
+    async def resolve_author_dm(self, post):
+        if not isinstance(post, discord.Message):
+            return None
+        if post.author == self._user:
+            return -1
+        channel_id, _ = await self.discord_pipe.awaitable._resolve_destination(post.author)
+        # fetch the new private channel if we don't have it
+        if not any(i.id == channel_id for i in self._private_channels):
+            self._private_channels = await self.discord_pipe.awaitable.private_channels()
+        return channel_id
+
     async def start_discord_client_server(self, path):
         '''Spawn a local discord server as a daemon and set the discord pipe object'''
         # TODO: set discord_ready here
@@ -118,6 +129,10 @@ class DiscordBridge:
                 member.display_name for member in server.members
             ]
             for server in self._servers}
+
+    @property
+    def all_channel_names(self):
+        return { i.id: format_channel(i, raw=True) for i in self.all_channels }
 
     @property
     def unmuted_channel_names(self):
@@ -369,6 +384,14 @@ class DiscordBridge:
 
     def _unmuted_channels(self):
         '''Get a list of channels (and private messages) which are unmuted'''
+        return [
+            [channel
+                for channel in server if not hasattr(channel, "server") or \
+                        not self.is_muted(channel.server, channel)]
+            for server in self._all_channels()]
+
+    def _all_channels(self):
+        '''Get a list of channels (and private messages)'''
         ret = [[*sorted(
             self._private_channels,
             key=lambda x: self._dm_ordering.get(x.id, "") or "",
@@ -384,8 +407,7 @@ class DiscordBridge:
                     if channel.server.owner is not None else False
                 try:
                     if channel.type != discord.ChannelType.text \
-                    or not visible \
-                    or self.is_muted(server, channel):
+                    or not visible:
                         continue
                 except KeyError:
                     pass
@@ -396,3 +418,7 @@ class DiscordBridge:
     @property
     def unmuted_channels(self):
         return [channel for server in self._unmuted_channels() for channel in server]
+
+    @property
+    def all_channels(self):
+        return [channel for server in self._all_channels() for channel in server]

@@ -76,11 +76,17 @@ nnoremap <silent><buffer> <Plug>(vimcord_open_reply)
 nnoremap <silent><buffer> <Plug>(vimcord_open_direct_reply)
       \ :<c-u>.call vimcord#discord#action#open_reply(1)<cr>
 
+nnoremap <silent><buffer> <Plug>(vimcord_open_direct_message)
+      \ :<c-u>.call vimcord#discord#action#start_private_message()<cr>
+
 nnoremap <silent><buffer> <Plug>(vimcord_delete_message)
       \ :<c-u>.call vimcord#discord#action#delete()<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_enter_channel)
-      \ :<c-u>call vimcord#discord#action#open_channel()<cr>
+      \ :<c-u>call vimcord#discord#action#open_channel(0)<cr>
+
+nnoremap <silent><buffer> <Plug>(vimcord_enter_unmuted_channel)
+      \ :<c-u>call vimcord#discord#action#open_channel(1)<cr>
 
 nnoremap <silent><buffer> <Plug>(vimcord_edit)
       \ :<c-u>.call vimcord#discord#action#edit_start()<cr>
@@ -116,7 +122,9 @@ nmap <buffer> I <Plug>(vimcord_open_direct_reply)
 nmap <buffer> X <Plug>(vimcord_delete_message)
 nmap <buffer> D <Plug>(vimcord_delete_message)
 
-nmap <buffer> A <Plug>(vimcord_enter_channel)
+nmap <buffer> C <Plug>(vimcord_open_direct_message)
+
+nmap <buffer> A <Plug>(vimcord_enter_unmuted_channel)
 nmap <buffer> <c-t> <Plug>(vimcord_enter_channel)
 
 nmap <buffer> r <Plug>(vimcord_edit)

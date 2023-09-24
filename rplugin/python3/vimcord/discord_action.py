@@ -2,6 +2,7 @@ import asyncio
 import logging
 import re
 
+# from vimcord.discord import errors as discord_errors
 from vimcord.formatting import format_channel
 from vimcord.pickle_pipe import ForwardedException
 
@@ -202,11 +203,50 @@ class DiscordAction:
             log.error(e)
             self.plugin.notify(f"Cannot delete message: {e.args[1]}")
 
+    async def try_direct_message(self, message_data):
+        if isinstance(message_data, dict) and "message_id" in message_data is not None:
+            message_id = message_data["message_id"]
+        elif isinstance(message_data, int):
+            message_id = message_data
+        else:
+            self.plugin.notify("Cannot direct message: received bad message data!")
+            return
+
+        if (message := self.bridge.all_messages.get(message_id)) is None:
+            self.plugin.notify("Cannot direct message: unknown message ID!")
+            return
+
+        try:
+            channel_id = await self.bridge.resolve_author_dm(message)
+        except ForwardedException as e:
+            # If the target user doesn't allow messages from strangers, we get a 403
+            self.plugin.notify(f"Discord responded: {e.args[1]}")
+            return
+            # if isinstance(e.args[0], discord_errors.Forbidden):
+
+        if channel_id == -1:
+            self.plugin.notify("Cannot direct message yourself!")
+            return
+        if channel_id is None:
+            self.plugin.notify("Cannot direct message: failed to resolve target!")
+            return
+
+        self.plugin.nvim.async_call(
+            self.plugin.nvim.api.call_function,
+            "vimcord#discord#action#simple_reply",
+            [{"channel_id": channel_id}]
+         )
+
     async def try_reconnect(self):
         self.discord.task.connect()
 
     def get_server_members(self, server_id):
         return self.bridge.all_members.get(server_id, [])
+
+    def get_channel_names(self, channel_id=None):
+        if channel_id is None:
+            return self.bridge.all_channel_names
+        return self.bridge.all_channel_names.get(channel_id, "")
 
     def get_unmuted_channel_names(self):
         return self.bridge.unmuted_channel_names

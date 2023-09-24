@@ -99,7 +99,9 @@ Keys
 | `I`       | `I`nsert reply    | Like `i`, but marks the message under the cursor as a reference (i.e., a discord reply)
 | `r`, `R`  | `r`eplace message | Attempts to retrieve the message under the cursor for editing and enters the reply buffer. Does not work if you are not the author of the post.
 | `X`, `D`  | `D`elete message  | Attempts to delete the message under the cursor. These are shifted characters to unintentional deletions.
-| `A`, `<c-t>` | `A`ppend message  | Prompts the user for a channel name, as in the webapp's ctrl-t shortcut. When an existing channel is selected, enters the reply buffer targeting the channel.
+| `C`       | `C`end DM         | Enter the reply buffer, targetting a direct message with the post's author
+| `<c-t>`   | (ctrl-t)          | Prompts the user for a channel name, as in the webapp's ctrl-t shortcut. When an existing channel is selected, enters the reply buffer targeting the channel.
+| `A`       | `A`ppend message  | Functions similarly to `<c-t>`, but with unmuted channels only.
 | `gW`      | `g`et `W`hen      | Displays the post time of the message under the cursor
 | `K`       | `k` message       | Go to the message above the current one
 | `J`       | `j` message       | Go to the message below the current one

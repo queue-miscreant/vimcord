@@ -10,6 +10,15 @@ function vimcord#discord#action#cleanup_buffer_with_ats()
   call nvim_buf_del_keymap(g:vimcord["reply_buffer"], "i", "@")
 endfunction
 
+function vimcord#discord#action#simple_reply(message_data)
+  call vimcord#reply#enter_reply_buffer({
+        \   "data": a:message_data,
+        \   "action": "message"
+        \ },
+        \ "",
+        \ function("s:buffer_with_ats"))
+endfunction
+
 function vimcord#discord#action#open_reply(is_reply) range
   if len(b:vimcord_lines_to_messages) <= a:firstline - 1
     echohl ErrorMsg
@@ -32,12 +41,7 @@ function vimcord#discord#action#open_reply(is_reply) range
     setlocal cursorline
   endif
 
-  call vimcord#reply#enter_reply_buffer({
-        \   "data": message_data,
-        \   "action": "message"
-        \ },
-        \ "",
-        \ function("s:buffer_with_ats"))
+  call vimcord#discord#action#simple_reply(message_data)
 endfunction
 
 " Delete Discord message -------------------------------------------------------
@@ -103,9 +107,13 @@ function! s:update_server_suggestions()
 endfunction
 
 " Discord server suggestions
-function s:server_suggestions()
-  let b:vimcord_unmuted_channel_names = VimcordInvokeDiscordAction("get_unmuted_channel_names")
-  let b:vimcord_fuzzy_match = values(b:vimcord_unmuted_channel_names)
+function s:server_suggestions(unmuted_only)
+  if a:unmuted_only
+    let b:vimcord_channel_names = VimcordInvokeDiscordAction("get_unmuted_channel_names")
+  else
+    let b:vimcord_channel_names = VimcordInvokeDiscordAction("get_channel_names")
+  endif
+  let b:vimcord_fuzzy_match = values(b:vimcord_channel_names)
   let b:vimcord_fuzzy_match_results = []
 
   " Option record
@@ -125,7 +133,7 @@ endfunction
 function vimcord#discord#action#cleanup_server_suggestions()
   " Restore fuzzy completion data
   try
-    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_unmuted_channel_names")
+    call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_channel_names")
     call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match")
     call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_fuzzy_match_results")
     call nvim_set_option(
@@ -142,14 +150,14 @@ function vimcord#discord#action#cleanup_server_suggestions()
   endtry
 endfunction
 
-function vimcord#discord#action#open_channel() range
+function vimcord#discord#action#open_channel(unmuted_only) range
   " Get the channel name by name, updating suggestions when typing channel name
   call vimcord#reply#enter_reply_buffer({
         \   "data": {},
         \   "action": "find_discord_channel"
         \ },
         \ "",
-        \ function("s:server_suggestions"))
+        \ { -> s:server_suggestions(a:unmuted_only) })
 endfunction
 
 function s:find_discord_channel()
@@ -168,7 +176,7 @@ function s:find_discord_channel()
 
   " Reverse-lookup for id
   let channel_id = ""
-  for [id, name] in items(b:vimcord_unmuted_channel_names)
+  for [id, name] in items(b:vimcord_channel_names)
     if name ==# channel_name
       let channel_id = id
       break
@@ -184,16 +192,24 @@ function s:find_discord_channel()
 
   " Wait until we're out of the reply buffer before calling this
   call timer_start(0, { ->
-        \   vimcord#reply#enter_reply_buffer({
-        \     "data": { "channel_id": channel_id },
-        \     "action": "message"
-        \   },
-        \   "",
-        \   function("s:buffer_with_ats"))
+        \   vimcord#discord#action#simple_reply({ "channel_id": channel_id })
         \ })
 endfunction
 
 call vimcord#reply#add_handler("find_discord_channel", function("s:find_discord_channel"))
+
+function vimcord#discord#action#start_private_message()
+  if len(b:vimcord_lines_to_messages) <= a:firstline - 1
+    echohl ErrorMsg
+    echo "No message under cursor"
+    echohl None
+    return
+  endif
+
+  let message_number = b:vimcord_lines_to_messages[a:firstline - 1]
+  let message_data = copy(b:vimcord_messages_to_extra_data[message_number])
+  call VimcordInvokeDiscordAction("try_direct_message", message_data)
+endfunction
 
 " Statusline display functions -------------------------------------------------
 
@@ -215,7 +231,8 @@ endfunction
 function vimcord#discord#action#show_reply_channel()
   try
     let channel_id = g:vimcord["reply_target_data"]["data"]["channel_id"]
-    return g:vimcord["channel_names"][channel_id]
+    let discord_channel = VimcordInvokeDiscordAction("get_channel_names", channel_id)
+    return discord_channel
   catch
   endtry
   return ""
