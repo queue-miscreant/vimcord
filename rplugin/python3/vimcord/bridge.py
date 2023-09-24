@@ -215,6 +215,9 @@ class DiscordBridge:
             for message in unmuted_messages
         ]
 
+        is_logged_in = await self.discord_pipe.awaitable.is_logged_in()
+        is_not_connected = await self.discord_pipe.awaitable.is_closed()
+
         def on_ready_callback():
             log.info("Sending data to vim...")
             self.plugin.nvim.api.call_function(
@@ -224,6 +227,12 @@ class DiscordBridge:
 
             if not links_and_messages:
                 return
+
+            self.plugin.nvim.async_call(
+                self.plugin.nvim.api.call_function,
+                "vimcord#discord#local#set_connection_state",
+                [True, is_not_connected, is_logged_in]
+            )
 
             id_and_links, unflat_messages = zip(*links_and_messages)
             # send messages to vim

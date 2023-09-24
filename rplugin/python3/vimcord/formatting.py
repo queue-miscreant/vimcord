@@ -9,10 +9,11 @@ log.setLevel("DEBUG")
 INDENT_SIZE = 3
 MAX_REPLY_WIDTH = 100
 
-def syntax_color(color, text, literal=False):
-    '''This is how the syntax plugin expects colors'''
-    if literal:
-        return f"\x1b{color} {text} \x1b"
+def syntax_color(color, text):
+    '''
+    Format some `text` using the dynamic colors provided by `discordColor` syntax.
+    `color` is any color format supported by `two56()`.
+    '''
     return f"\x1b{two56(color):02x} {text} \x1b"
 
 def ellipsize(string, width):
@@ -21,6 +22,16 @@ def ellipsize(string, width):
     return string
 
 def clean_post(bridge, post: discord.Message, no_reply=False, last_author=None):
+    '''
+    Convert a `discord.Message` object into a form suitable for display in a text buffer.
+    Returns a triple of:
+        - A list of links found when parsing the post
+        - A virt_lines extmark argument
+        - A string with newlines to be inserted into the buffer
+
+    If no_reply is true, the second return value is an empty list.
+    If last_author is not None, the author is omitted if post.author and last_author match.
+    '''
     embeds = [i["url"] for i in post.attachments]
     links = LINK_RE.findall(post.clean_content) + embeds
     #pre-visit all links made by me
@@ -46,22 +57,20 @@ def clean_post(bridge, post: discord.Message, no_reply=False, last_author=None):
     return links, reply, f" {author}:\n{content}"
 
 def extmark_post(bridge, post: discord.Message):
+    '''
+    Convert a `discord.Message` object into a single-line extmark.
+    The author is rendered in color, but message body is rendered
+    with the "discordReply" highlight.
+    '''
     embeds = [i["url"] for i in post.attachments]
     content = post.clean_content + ' ' + ' '.join(embeds)
     color_number = "Default"
     if hasattr(post.author, "color"):
         color_number = two56(str(post.author.color))
 
-    lines = content.split("\n")
-    ellipsize = False
-    if len(lines) > 1:
-        content = lines[0]
-        ellipsize = True
-    if len(content) > 80:
-        content = content[:MAX_REPLY_WIDTH]
-        ellipsize = True
-    if ellipsize:
-        content = content[:-1] + "…"
+    content = content.replace("\n", " ")
+    if len(content) > MAX_REPLY_WIDTH:
+        content = content[:MAX_REPLY_WIDTH - 1] + "…"
 
     return [
         [post.author.display_name, f"discordColor{color_number}"],
@@ -69,7 +78,11 @@ def extmark_post(bridge, post: discord.Message):
     ]
 
 def format_channel(channel, width=80, raw=False):
-    '''Consistent way to format channels'''
+    '''
+    Format a discord.Channel object as a string.
+    Private messages are rendrered as "Direct message with...", while
+    general text channels are rendered as "{server name} # {channel name}".
+    '''
     # private channels are serverless
     if isinstance(channel, discord.PrivateChannel):
         if raw:
@@ -86,6 +99,10 @@ def format_channel(channel, width=80, raw=False):
 # 256-color helper----------------------------------------------------------------------------------
 
 def _too_extreme(color, too_black=0.1, too_white=0.9):
+    '''
+    If a triple of numbers has an average which is too low (`too_black`)
+    or too high (`too_white`), signal that the triple is invalid with None.
+    '''
     if too_black < sum(color)/3 < too_white:
         return color
     return None
@@ -94,6 +111,11 @@ def two56(color, reweight=_too_extreme):
     '''
     Convert general colors to 256 terminal colors.
     Extreme colors are rounded with `reweight`.
+
+    `color` can be any of:
+        - A hex code (#FFF or #FFFFFF)
+        - A triple of values ([255, 255, 255])
+        - A literal number 0-255, matching terminal 256 colors
     '''
     if isinstance(color, int):
         return color
@@ -125,8 +147,8 @@ def two56(color, reweight=_too_extreme):
             avg = sum(rgbf)/3
 
         # if the standard deviation is small enough, this is just a tone of gray
-        stdev = sum((i - avg)**2 for i in rgbf)**0.5
-        if stdev < 0.05:
+        variance = sum((i - avg)**2 for i in rgbf)
+        if variance < 0.0025:
             return 232 + int(avg*24)
 
         # weighted sum
