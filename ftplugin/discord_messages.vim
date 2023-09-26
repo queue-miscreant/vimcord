@@ -51,7 +51,13 @@ if !(exists("b:vimcord_lines_to_messages") && exists("b:vimcord_messages_to_extr
 endif
 
 function! s:scroll_message(direction)
-  let message_number = b:vimcord_lines_to_messages[line(".") - 1]
+  let line_number = line(".") - 1
+  " Can't scroll if no messages
+  if !exists("b:vimcord_lines_to_messages[line_number]")
+    return
+  endif
+
+  let message_number = b:vimcord_lines_to_messages[line_number]
   let last_line = -1
   while 1
     let new_message_number = get(b:vimcord_lines_to_messages, line(".") - 1, -1)
