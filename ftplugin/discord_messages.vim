@@ -106,6 +106,9 @@ nnoremap <silent><buffer> <Plug>(vimcord_open_media_under_cursor)
 nnoremap <silent><buffer> <Plug>(vimcord_open_last_media)
       \ :<c-u>call vimcord#link#open_most_recent(1)<cr>
 
+nnoremap <silent><buffer> <Plug>(vimcord_reconnect)
+      \ :<c-u>call vimcord#discord#action#reconnect()<cr>
+
 nnoremap <silent><buffer> <Plug>(vimcord_message_above)
       \ :<c-u>call <SID>scroll_message("k")<cr>
 
@@ -129,6 +132,8 @@ nmap <buffer> <c-t> <Plug>(vimcord_enter_channel)
 
 nmap <buffer> r <Plug>(vimcord_edit)
 nmap <buffer> R <Plug>(vimcord_edit)
+
+nmap <buffer> <c-r> <Plug>(vimcord_reconnect)
 
 nmap <buffer> K <Plug>(vimcord_message_above)
 nmap <buffer> J <Plug>(vimcord_message_below)

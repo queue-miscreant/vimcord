@@ -185,8 +185,8 @@ class DiscordBridge:
         ])
         # flatten results
         # TODO: intercalate?
-        extmark_content = [j for i in formatted_opengraph for j in i[0]]
-        media_links = [j for i in formatted_opengraph for j in i[1]]
+        extmark_content = [j for i in formatted_opengraph if i for j in i[0]]
+        media_links = [j for i in formatted_opengraph if i for j in i[1]]
 
         self.plugin.nvim.async_call(
             lambda x,y,z,w,v: self.plugin.nvim.lua.vimcord.add_link_extmarks(x,y,z,w,v),

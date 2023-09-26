@@ -210,7 +210,7 @@ class SpecialOpeners:
 
     @classmethod
     async def musk_twitter(cls, link):
-        await cls.twitter(link.replace("x.com", "twitter.com"))
+        return await cls.twitter(link.replace("x.com", "twitter.com"))
 
     @staticmethod
     async def twitter(link):
