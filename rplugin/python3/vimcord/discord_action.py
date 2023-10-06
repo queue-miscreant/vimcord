@@ -240,8 +240,10 @@ class DiscordAction:
     async def try_reconnect(self):
         self.discord.task.connect()
 
-    def get_server_members(self, server_id):
-        return self.bridge.all_members.get(server_id, [])
+    def get_channel_members(self, channel_id):
+        if (channel := self.bridge.get_channel(channel_id)) is None:
+            return []
+        return self.bridge.all_members.get(channel.server.id, [])
 
     def get_channel_names(self, channel_id=None):
         if channel_id is None:

@@ -14,7 +14,7 @@ log.setLevel("INFO")
 def utc_timestamp_to_iso(timestamp):
     # iso_format = timestamp.astimezone(datetime.UTC).isoformat(' ', timespec="seconds")
     current_timezone = datetime.datetime.now(datetime.timezone.utc).astimezone().tzinfo
-    local_time = datetime.datetime(*timestamp.timetuple()[:-2], datetime.UTC).astimezone(current_timezone)
+    local_time = datetime.datetime(*timestamp.timetuple()[:-2], datetime.timezone.utc).astimezone(current_timezone)
     iso_format = local_time.isoformat(" ", timespec="seconds").split(" ")
     # remove timezone
     iso_format[1] = iso_format[1].split("+")[0].split("-")[0]
@@ -85,6 +85,7 @@ class DiscordBridge:
         _, self.discord_pipe = await local_discord_server.connect_to_daemon(path, log)
 
         # bind events
+        self.discord_pipe.event("remote_update", self.on_remote_update)
         self.discord_pipe.event("servers_ready", self.on_ready)
         self.discord_pipe.event("message", self.on_message)
         self.discord_pipe.event("message_edit", self.on_message_edit)
@@ -198,8 +199,13 @@ class DiscordBridge:
         )
 
     # DISCORD CALLBACKS --------------------------------------------------------
+    async def on_remote_update(self):
+        log.info("Getting new remote")
+        await self.get_remote_attributes()
+
     async def on_ready(self):
         '''Ready callback. Get messages from daemon and add them to the buffer'''
+        # TODO: seems to fail when sent over again
         await self.get_remote_attributes()
         log.info("Retrieving messages from daemon")
         start_messages = await self.discord_pipe.awaitable.connection.messages()
@@ -225,14 +231,14 @@ class DiscordBridge:
                 [self.extra_data]
             )
 
-            if not links_and_messages:
-                return
-
             self.plugin.nvim.async_call(
                 self.plugin.nvim.api.call_function,
                 "vimcord#discord#local#set_connection_state",
                 [True, is_not_connected, is_logged_in]
             )
+
+            if not links_and_messages:
+                return
 
             id_and_links, unflat_messages = zip(*links_and_messages)
             # send messages to vim
@@ -431,3 +437,6 @@ class DiscordBridge:
     @property
     def all_channels(self):
         return [channel for server in self._all_channels() for channel in server]
+
+    def get_channel(self, channel_id):
+        return next((channel for channel in self.all_channels if str(channel.id) == str(channel_id)), None)

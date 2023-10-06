@@ -1,5 +1,6 @@
 import base64
 import logging
+import sys
 import traceback
 
 import pynvim
@@ -87,13 +88,23 @@ class Vimcord:
         self.bridge.visit_link(link)
 
     def handle_exception(self, loop, context):
-        if (message := context.get("exception")) is None:
-            log.error("%s", message)
+        if (exception := context.get("exception")) is None or not isinstance(exception, Exception):
+            message = context.get("message")
+            log.error("Handler got non-exception: %s", message)
             self.notify(message, level=0)
             return
-        formatted = traceback.format_exception(context["exception"])
-        error_text = f"Error occurred:\n{''.join(formatted)}"
+        if sys.version_info >= (3, 10):
+            formatted = traceback.format_exception(exception)
+        elif hasattr(exception, "__traceback__"):
+            formatted = traceback.format_exception(
+                type(exception),
+                exception,
+                exception.__traceback__
+            )
+        else:
+            formatted = "(Could not get stack trace)"
 
+        error_text = f"Error occurred:\n{''.join(formatted)}"
         log.error(error_text)
         self.notify(error_text)
 

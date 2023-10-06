@@ -134,15 +134,20 @@ function vimcord#discord#local#goto_reference() range
 endfunction
 
 function vimcord#discord#local#complete_reply()
-  if !(exists("g:vimcord.reply_target_data.data.server_id"))
+  if !(exists("g:vimcord.reply_target_data.data.channel_id"))
+    echohl ErrorMsg
+    echo "Error when attempting member completion"
+    echohl None
     return ""
   endif
 
   let prevcomplete = &completeopt
   set completeopt+=noinsert,noselect
 
-  let server_id = g:vimcord["reply_target_data"]["data"]["server_id"]
-  let members = VimcordInvokeDiscordAction("get_server_members", server_id)
+  " TODO: need fuzzier search (for example, by discord handle AND server nickname)
+  " Bind autocmds?
+  let channel_id = g:vimcord["reply_target_data"]["data"]["channel_id"]
+  let members = VimcordInvokeDiscordAction("get_channel_members", channel_id)
   call complete(col("."), members)
 
   let &completeopt = prevcomplete

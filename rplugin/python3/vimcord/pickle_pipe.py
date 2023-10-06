@@ -10,13 +10,14 @@ import gzip
 import json
 import logging
 import pickle
+import sys
 import traceback
 
 log = logging.getLogger(__name__)
 log.setLevel("DEBUG")
 
 class PicklePipeException(Exception):
-    '''Exception object passed when pickling errors occur'''
+    '''Exception object passed for pickling errors or invalid paths on the server object'''
 
 class ForwardedException(Exception):
     '''Exception passed when a remote await fails. Raises exception on the client.'''
@@ -75,7 +76,7 @@ class PickleServerProtocol(asyncio.Protocol):
     def connection_made(self, transport):
         '''Process communication initiated. Save transport and send connected event.'''
         self.transport = transport
-        log.debug("Connected!")
+        log.info("Connected!")
 
     def data_received(self, data):
         '''Reply to data request with pickle'''
@@ -92,7 +93,17 @@ class PickleServerProtocol(asyncio.Protocol):
                 self._prev = b""
                 asyncio.get_event_loop().create_task(self._reply(unpickled))
             except Exception as e:
-                log.error("Error %s occurred during read!\n%s", e, "".join(traceback.format_exception(e)))
+                if sys.version_info >= (3, 10):
+                    stack_trace = traceback.format_exception(e)
+                elif hasattr(e, "__traceback__"):
+                    stack_trace = traceback.format_exception(type(e), e, e.__traceback__)
+                else:
+                    stack_trace = "(Could not get stack trace)"
+                log.error(
+                    "Error %s occurred during read!\n%s",
+                    e,
+                    "".join(stack_trace)
+                )
 
         if hold != b"":
             self._prev = self._prev + hold
@@ -107,8 +118,9 @@ class PickleServerProtocol(asyncio.Protocol):
             try:
                 self.transport.write(encode_for_pipe(base + args))
             except pickle.PicklingError:
-                log.error("Could not pickle %s!", args)
-                self.transport.write(encode_for_pipe(base + [PicklePipeException()]))
+                formatted = f"Could not pickle {args}!"
+                log.error(formatted)
+                self.transport.write(encode_for_pipe(base + [PicklePipeException(formatted)]))
 
     def write_error(self, exc):
         '''Write an exception's type and message to the pipe, fewer questions asked'''
@@ -224,17 +236,22 @@ class PickleClientProtocol(asyncio.Protocol):
                 if unpickle[0] == "event":
                     if len(unpickle) >= 3 and isinstance(unpickle[2], PicklePipeException):
                         self._call_event("PROTOCOL_ERROR", unpickle[1])
+                        log.error("Protocol error occurred! %s", unpickle[2])
                         continue
                     self._call_event(unpickle[1], unpickle[2:])
                 elif (waiting_future := self._waiting_property.get(unpickle[0])) is not None:
-                    if isinstance(unpickle[1], PicklePipeException):
-                        raise unpickle[1]
-                    if isinstance(unpickle[1], ForwardedException):
+                    if isinstance(unpickle[1], (PicklePipeException, ForwardedException)):
                         waiting_future.set_exception(unpickle[1])
                         continue
                     waiting_future.set_result(unpickle[1])
             except Exception as e:
-                log.error("Error %s occurred during read!\n%s", e, "".join(traceback.format_exception(e)))
+                if sys.version_info >= (3, 10):
+                    stack_trace = traceback.format_exception(e)
+                elif hasattr(e, "__traceback__"):
+                    stack_trace = traceback.format_exception(type(e), e, e.__traceback__)
+                else:
+                    stack_trace = "(Could not get stack trace)"
+                log.error("Error %s occurred during read!\n%s", e, "".join(stack_trace))
 
         if hold != b"":
             self._prev += hold

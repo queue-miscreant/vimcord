@@ -1,4 +1,4 @@
-import asyncio
+import asynci
 import os
 import os.path
 import logging
@@ -6,17 +6,28 @@ import logging.handlers
 import sys
 import traceback
 
-from vimcord.pickle_pipe import PickleServerProtocol
+import vimcord.pickle_pipe as pickle_pipe
 from vimcord.local_discord_server.discord_client import VimcordClient
 
 log = logging.getLogger(__package__)
 log.setLevel("ERROR")
+pickle_pipe.log.setLevel("ERROR")
 
 CREATED_PROTOCOLS = []
 
 def _handle_exception(loop, context):
-    formatted = traceback.format_exception(context["exception"])
-    log.error("Error occurred:\n%s", "".join(formatted))
+    exception = context.get("exception")
+    if sys.version_info >= (3, 10):
+        formatted = traceback.format_exception(exception)
+        log.error("Error occurred:\n%s", "".join(formatted))
+    elif hasattr(exception, "__traceback__"):
+        formatted = traceback.format_exception(
+            type(exception),
+            exception,
+            exception.__traceback__
+        )
+    else:
+        formatted = "(Could not get stack trace)"
     # broadcast the error to clients (i.e., so they can tell it to reconnect)
     deletions = []
     for i, protocol in enumerate(CREATED_PROTOCOLS):
@@ -51,6 +62,7 @@ DISCORD_EVENT_NAMES = [
     "reaction_clear",
     "reaction_remove",
     ("really_ready", "ready"),
+    "remote_update", # not a Discord event; used to send daemon data to clients
     "resumed",
     "servers_ready",
     "server_available",
@@ -67,7 +79,7 @@ DISCORD_EVENT_NAMES = [
 ]
 
 def bind_discord_pickle(discord_client):
-    protocol = PickleServerProtocol(discord_client)
+    protocol = pickle_pipe.PickleServerProtocol(discord_client)
 
     for e in DISCORD_EVENT_NAMES:
         if isinstance(e, tuple):

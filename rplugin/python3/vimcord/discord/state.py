@@ -624,6 +624,7 @@ class ConnectionState:
                 self.dispatch('server_role_update', old_role, role)
 
     def parse_guild_members_chunk(self, data):
+        log.debug("here")
         server = self._get_server(data.get('guild_id'))
         members = data.get('members', [])
         for member in members:
