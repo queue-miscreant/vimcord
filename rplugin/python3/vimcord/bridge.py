@@ -56,6 +56,7 @@ class DiscordBridge:
         self._discord_username = discord_username
         self._discord_password = discord_password
 
+        log.info("Inited")
         plugin.nvim.loop.create_task(
             self.start_discord_client_server(plugin.socket_path)
         )
@@ -81,8 +82,10 @@ class DiscordBridge:
 
     async def start_discord_client_server(self, path):
         '''Spawn a local discord server as a daemon and set the discord pipe object'''
+        log.info("Starting client %s %s", path, log)
         # TODO: set discord_ready here
         _, self.discord_pipe = await local_discord_server.connect_to_daemon(path, log)
+        log.info("Here!")
 
         # bind events
         self.discord_pipe.event("remote_update", self.on_remote_update)

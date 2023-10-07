@@ -5,12 +5,8 @@ import signal
 import shlex
 import sys
 import subprocess
-import logging
 
 from vimcord.pickle_pipe import PickleClientProtocol
-
-log = logging.getLogger(__name__)
-log.setLevel("DEBUG")
 
 async def connect_to_daemon(path, log):
     '''
@@ -23,7 +19,7 @@ async def connect_to_daemon(path, log):
     server_running = os.path.exists(path) and \
             os.system(f"lsof {shlex.quote(os.path.join(path, 'socket'))}") == 0
     if not server_running:
-        log.debug("Spawning daemon...")
+        log.info("Spawning daemon...")
         # add the plugin to the python path
         vimcord_dir = os.path.dirname(__file__)
         for _ in range(2):
@@ -33,7 +29,7 @@ async def connect_to_daemon(path, log):
             env={"PYTHONPATH": vimcord_dir}
         )
 
-    log.debug("Connecting to daemon...")
+    log.info("Connecting to daemon...")
     ret = None
     while True:
         try:
@@ -44,7 +40,7 @@ async def connect_to_daemon(path, log):
             break
         except (FileNotFoundError, ConnectionRefusedError, NotADirectoryError):
             await asyncio.sleep(1)
-    log.debug("Connected to daemon process!")
+    log.info("Connected to daemon process!")
 
     return not server_running, ret
 
