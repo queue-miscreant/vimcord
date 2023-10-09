@@ -92,14 +92,20 @@ function vimcord#link#open_most_recent(only_media)
   call setpos(".", prev)
 endfunction
 
+function s:clear_echo()
+  echo ""
+endfunction
+
 function vimcord#link#open_image(link)
   echo "Opening image..."
   call system(g:vimcord_image_opener . " " . shellescape(a:link) . " &")
+  call timer_start(3000, { -> s:clear_echo() })
 endfunction
 
 function vimcord#link#open_video(link)
   echo "Playing video..."
   call system(g:vimcord_video_opener . " " . shellescape(a:link) . " &")
+  call timer_start(3000, { -> s:clear_echo() })
 endfunction
 
 function vimcord#link#color_links_in_buffer(link, ...)

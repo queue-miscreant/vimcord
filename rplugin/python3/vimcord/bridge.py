@@ -32,11 +32,9 @@ class DiscordBridge:
     '''
     Manage global state related to things other than discord
     '''
-    def __init__(self, plugin, discord_username, discord_password):
+    def __init__(self, plugin):
         self.plugin = plugin
         self.discord_pipe = None
-
-        self._buffer = plugin.nvim.lua.vimcord.create_window()
 
         self._last_post = None
         # Map from post id to post object
@@ -52,14 +50,6 @@ class DiscordBridge:
         self._notify = {}
         self._servers = []
         self._private_channels = []
-
-        self._discord_username = discord_username
-        self._discord_password = discord_password
-
-        log.info("Inited")
-        plugin.nvim.loop.create_task(
-            self.start_discord_client_server(plugin.socket_path)
-        )
 
     async def get_remote_attributes(self):
         '''Refresh rarely-updated members from the daemon'''
@@ -80,25 +70,27 @@ class DiscordBridge:
             self._private_channels = await self.discord_pipe.awaitable.private_channels()
         return channel_id
 
-    async def start_discord_client_server(self, path):
+    async def start_discord_client_server(self, path, discord_username, discord_password):
         '''Spawn a local discord server as a daemon and set the discord pipe object'''
-        log.info("Starting client %s %s", path, log)
-        # TODO: set discord_ready here
-        _, self.discord_pipe = await local_discord_server.connect_to_daemon(path, log)
-        log.info("Here!")
+        if self.discord_pipe is None:
+            log.info("Starting client %s", path)
+            # TODO: set discord_ready here
+            _, self.discord_pipe = await local_discord_server.connect_to_daemon(path, log)
 
-        # bind events
-        self.discord_pipe.event("remote_update", self.on_remote_update)
-        self.discord_pipe.event("servers_ready", self.on_ready)
-        self.discord_pipe.event("message", self.on_message)
-        self.discord_pipe.event("message_edit", self.on_message_edit)
-        self.discord_pipe.event("message_delete", self.on_message_delete)
-        self.discord_pipe.event("dm_update", self.on_dm_update)
-        self.discord_pipe.event("error", self.on_error)
+            # bind events
+            self.discord_pipe.event("remote_update", self.on_remote_update)
+            self.discord_pipe.event("servers_ready", self.on_ready)
+            self.discord_pipe.event("message", self.on_message)
+            self.discord_pipe.event("message_edit", self.on_message_edit)
+            self.discord_pipe.event("message_delete", self.on_message_delete)
+            self.discord_pipe.event("dm_update", self.on_dm_update)
+            self.discord_pipe.event("error", self.on_error)
+        else:
+            log.info("Using existing client")
 
-        await self.preamble()
+        await self.preamble(discord_username, discord_password)
 
-    async def preamble(self):
+    async def preamble(self, discord_username, discord_password):
         '''
         When connecting to the daemon, check if the user is logged in and
         whether a connection has been established.
@@ -108,8 +100,8 @@ class DiscordBridge:
         if not is_logged_in:
             log.info("Not logged in! Attempting to login and start discord connection...")
             self.discord_pipe.task.start(
-                self._discord_username,
-                self._discord_password
+                discord_username,
+                discord_password
             )
         else:
             if is_not_connected:
@@ -193,8 +185,7 @@ class DiscordBridge:
         media_links = [j for i in formatted_opengraph if i for j in i[1]]
 
         self.plugin.nvim.async_call(
-            lambda x,y,z,w,v: self.plugin.nvim.lua.vimcord.add_link_extmarks(x,y,z,w,v),
-            self._buffer,
+            lambda x,y,z,w: self.plugin.nvim.lua.vimcord.discord.add_link_extmarks(x,y,z,w),
             message_id,
             extmark_content,
             media_links,
@@ -245,8 +236,7 @@ class DiscordBridge:
 
             id_and_links, unflat_messages = zip(*links_and_messages)
             # send messages to vim
-            self.plugin.nvim.lua.vimcord.append_messages_to_buffer(
-                self._buffer,
+            self.plugin.nvim.lua.vimcord.discord.append_messages_to_buffer(
                 [message for i in unflat_messages for message in i]
             )
 
@@ -275,7 +265,7 @@ class DiscordBridge:
         )
 
     def _append_messages_to_buffer(self, links_and_id, messages):
-        self.plugin.nvim.lua.vimcord.append_messages_to_buffer(self._buffer, messages)
+        self.plugin.nvim.lua.vimcord.discord.append_messages_to_buffer(messages)
 
         message_id, links = links_and_id
         if links and self.plugin.do_link_previews:
@@ -335,10 +325,10 @@ class DiscordBridge:
         last_author = self.all_messages_last_author.get(post.id)
         links, _, message = clean_post(self, post, no_reply=True, last_author=last_author)
         as_reply = extmark_post(self, post)
-        self.plugin.nvim.lua.vimcord.edit_buffer_message(
-            self._buffer,
-            message.split("\n"),
+        self.plugin.nvim.lua.vimcord.discord.edit_buffer_message(
+            post.id,
             as_reply,
+            message.split("\n"),
             # this is immutable data, but it's (marginally) easier to send it again
             {
                 "message_id": post.id,
@@ -362,8 +352,7 @@ class DiscordBridge:
         if muted:
             return
         self.plugin.nvim.async_call(
-            lambda x,y: self.plugin.nvim.lua.vimcord.delete_buffer_message(x, y),
-            self._buffer,
+            lambda x: self.plugin.nvim.lua.vimcord.discord.delete_buffer_message(x),
             post.id,
         )
 

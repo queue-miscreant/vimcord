@@ -224,7 +224,7 @@ endfunction
 function vimcord#buffer#add_link_extmarks(message_number, preview_extmarks, visited_links)
   let [start_line, end_line] = vimcord#buffer#lines_by_message_number(a:message_number)
 
-  if end_line + 1 > nvim_buf_line_count(bufnr())
+  if end_line < 0
     echohl ErrorMsg
     echom "Could not add link extmarks to message number " .. a:message_number .. "!"
     echohl None

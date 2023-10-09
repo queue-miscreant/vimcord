@@ -62,9 +62,16 @@ function vimcord#discord#local#get_message_number(message_id)
   return -1
 endfunction
 
-function vimcord#discord#local#redo_reply_extmarks(reply_id, new_contents)
-  call insert(a:new_contents, [" ╓─", "discordReply"], 0)
+function vimcord#discord#local#redo_reply_extmarks(message_number, new_contents)
+  try
+    let reply_id = b:vimcord_messages_to_extra_data[a:message_number]["message_id"]
+  catch
+    echohl ErrorMsg
+    echohl "Could not redo extmarks! Invalid message number given."
+    echohl None
+  endtry
 
+  call insert(a:new_contents, [" ╓─", "discordReply"], 0)
   let reply_extmarks = nvim_buf_get_extmarks(
         \ 0,
         \ luaeval("vimcord.REPLY_NAMESPACE"),
@@ -79,7 +86,7 @@ function vimcord#discord#local#redo_reply_extmarks(reply_id, new_contents)
       call nvim_buf_del_extmark(0, luaeval("vimcord.REPLY_NAMESPACE"), id)
     else
       let message_number = b:vimcord_lines_to_messages[row]
-      if b:vimcord_messages_to_extra_data[message_number]["reply_message_id"] == a:reply_id
+      if b:vimcord_messages_to_extra_data[message_number]["reply_message_id"] == reply_id
         call nvim_buf_set_extmark(
               \ 0,
               \ luaeval("vimcord.REPLY_NAMESPACE"),
