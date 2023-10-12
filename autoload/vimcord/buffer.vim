@@ -267,7 +267,7 @@ endfunction
 " 
 " "window": The window ID to use, instead of the current window
 " "error": Whether to display an error on failure. Defaults to 1
-" "target_line": The line to use as the 'current' line instead
+" "total_lines_before": The line to use as the 'last' line instead of line('$')
 function vimcord#buffer#is_scrolled(...)
   let show_error = 1
   let window = 0
@@ -282,7 +282,7 @@ function vimcord#buffer#is_scrolled(...)
       let last_line = line("$", window)
     endif
 
-    let line_number = min([get(a:1, "target_line", line_number), last_line])
+    let last_line = get(a:1, "total_lines_before", last_line)
   endif
 
   if !exists("b:vimcord_lines_to_messages")
@@ -306,26 +306,21 @@ function vimcord#buffer#scrolled_message()
   return vimcord#buffer#is_scrolled({ "error": 0 }) ? "Scrolled" : ""
 endfunction
 
-
-" Try to scroll the window after adding a certain number of lines (lines_added)
-" If the added lines would make the window "not scrolled", then places the
-" buffer at the top of the last message.
+" Try to scroll the window after adding lines after the line number given by
+" total_lines_before.
+" If the message under the cursor's current position matches the message on
+" that line, then places the buffer at the top of the (new) last message.
 " Otherwise, attempts to scroll down single lines until the last line is
 " visible, or the cursor is at the top of the screen.
-function vimcord#buffer#scroll_cursor(lines_added)
+function vimcord#buffer#scroll_cursor(total_lines_before)
   " Scroll cursor if we were at the bottom before adding lines
-  if !vimcord#buffer#is_scrolled({ "target_line": line(".") + a:lines_added + 1 }) && !&cursorline
+  if !vimcord#buffer#is_scrolled({ "total_lines_before": a:total_lines_before }) && !&cursorline
     normal Gzb0KJ
     return
   endif
 
-  " Check that prior to the addition, the last line was visible
-  if line("w$") + a:lines_added !=# line("$")
-    return
-  endif
-
   " until we're scrolled upward
-  while line("w$") !=# line("$")
+  while line("w$") < line("$")
     " Save the window position
     let window_position = winsaveview()
     " Scroll down one line
@@ -334,7 +329,7 @@ function vimcord#buffer#scroll_cursor(lines_added)
     if line(".") !=# window_position["lnum"]
       " Reset and return
       call winrestview(window_position)
-      return
+      break
     endif
   endwhile
 endfunction

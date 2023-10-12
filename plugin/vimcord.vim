@@ -38,7 +38,7 @@ hi def link VimcordOGTitle Title
 hi def link VimcordOGDescription Conceal
 hi def link VimcordAdditional NonText
 
-hi def VimcordHighlight cterm=reverse gui=reverse
+hi def VimcordHighlight ctermbg=darkyellow guibg=#FFFF00 ctermfg=yellow guifg=#88FF44
 hi def VimcordVisitedLink ctermfg=244 guifg=#888888
 
 " Dictionary used for runtime data
@@ -84,7 +84,7 @@ command! -nargs=0 DiscordLogin call timer_start(0, { -> VimcordLogin() })
 
 " Airline support
 " XXX: Investigate other status line plugins
-function VimcordShowConnection()
+function! VimcordShowConnection()
   let ready = get(g:vimcord, "discord_ready", -1)
   let not_connected = get(g:vimcord, "discord_not_connected", -1)
   let logged_in = get(g:vimcord, "discord_logged_in", -1)

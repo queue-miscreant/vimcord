@@ -35,10 +35,8 @@ local function wrap_discord(func, fetch_discord_id)
       args[1] = message_number
     end
 
-    -- Schedule the function call inside the buffer
-    return vim.schedule(function()
-      vim.api.nvim_buf_call(buffer, function() func(unpack(args)) end)
-    end)
+    -- Run the function inside the buffer (so that line() works properly)
+    vim.api.nvim_buf_call(buffer, function() func(unpack(args)) end)
   end
 end
 

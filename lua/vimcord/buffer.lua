@@ -35,36 +35,30 @@ end
 
 -- all
 function buffer.append_messages_to_buffer(messages)
-  local line_count = 0
   local total_lines = vim.call("line", "$")
-  local cursor_position = vim.call("line", ".")
-
-  if cursor_position == 1 and total_lines == cursor_position then
-    line_count = line_count - 1
-  end
 
   for _, message in pairs(messages) do
     vim.call("vimcord#buffer#append", unpack(message))
-    local contents = message[1]
-    line_count = line_count + #contents
   end
 
   local windows = vim.call("win_findbuf", vim.call("bufnr"))
   for i = 1, #windows do
     vim.api.nvim_win_call(windows[i], function()
-      vim.call("vimcord#buffer#scroll_cursor", line_count)
+      vim.call("vimcord#buffer#scroll_cursor", total_lines)
     end)
   end
 end
 
 function buffer.edit_buffer_message(message_number, message_content, extra, highlighted)
+  local total_lines = vim.call("line", "$")
+
   local added_lines = vim.call("vimcord#buffer#edit", message_number, message_content, extra, highlighted)
 
   if added_lines then
     local windows = vim.call("win_findbuf", vim.call("bufnr"))
     for i = 1, #windows do
       vim.api.nvim_win_call(windows[i], function()
-        vim.call("vimcord#buffer#scroll_cursor", #message_content)
+        vim.call("vimcord#buffer#scroll_cursor", total_lines)
       end)
     end
   end
