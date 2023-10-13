@@ -48,6 +48,9 @@ except ImportError:
                 return cls(urlopen(request))
             return cls(urlopen(request, data))
 
+        class RequestException(OSError):
+            '''Mock RequestException from requests'''
+
     requests = RequestsMock
 
 DEFAULT_ENCODING = "utf-8"
@@ -267,7 +270,7 @@ async def get_link_content(link, notify_func=_dummy_notify):
         return await SpecialOpeners.title_and_description(link)
     except LinkEmptyException:
         pass
-    except (HTTPError, HTTPException, URLError) as e:
+    except (HTTPError, HTTPException, URLError, requests.RequestException) as e:
         notify_func("Error when curling link!", level=3)
         log.error("Error when curling link %s: %s", link, e, stack_info=True)
     return [], []
