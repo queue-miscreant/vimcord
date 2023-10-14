@@ -88,13 +88,18 @@ function vimcord#reply#push_buffer_contents()
 endfunction
 
 function vimcord#reply#forget_reply_contents()
+  " Clear the uploaded files
+  call nvim_buf_set_var(g:vimcord["reply_buffer"], "vimcord_uploaded_files", [])
+
   " Remove the status line
   if exists("g:vimcord.reply_target_data")
     " Easy mode for airline
     unlet g:vimcord["reply_target_data"]
 
     " Not-so-easy otherwise
-    if !exists(":AirlineRefresh")
+    if exists(":AirlineRefresh")
+      AirlineRefresh!
+    else
       for window in win_findbuf(g:vimcord["reply_buffer"])
         call nvim_win_set_option(window, "statusline", "")
       endfor
@@ -107,9 +112,6 @@ function vimcord#reply#forget_reply_contents()
     call nvim_buf_del_var(g:vimcord["reply_buffer"], "vimcord_cleanup")
   catch
   endtry
-
-  " Clear the uploaded files
-  call nvim_buf_set_var(g:vimcord["reply_buffer"], "vimcord_uploaded_files", [])
 
   wincmd p
 
@@ -179,21 +181,51 @@ function s:add_drag_and_drop(position)
 
   " Get the (trimmed) inserted content
   let start_position = max([0, a:position[2] - s:last_move_size - 1])
-  let insert_content = getline(".")[start_position:a:position[2]]
+  let curline = getline(".")
+  let insert_content = curline[start_position:a:position[2]]
   let filename = trim(insert_content)
 
   " Assume drag and drop content is shell-escaped already
-  " Remove null-terminator from echo
-  let filename = system("echo " .. filename)[:-2]
+  let filename = system("echo -n " .. filename)
   if filereadable(filename)
     " remove the filename we just inserted
-    exe "normal \"_d" .. s:last_move_size .. "h"
+    exe "normal \"_d" .. (s:last_move_size) .. "h"
+  " Hack for partial insertions
+  elseif insert_content =~ "/"
+    " Look for an absolute path
+    let column = col(".")
+    let prev_column = -1
+    let has_spaces = insert_content[-1:] ==# "'"
 
+    while column !=# prev_column && !filereadable(filename)
+      normal F/
+      let prev_column = column
+      let column = col(".")
+
+      let insert_content = curline[max([column - has_spaces - 1, 0]):a:position[2]]
+      let filename = trim(insert_content)
+    endwhile
+
+    " Delete the inserted content
+    if filereadable(filename)
+      exe "normal \"_d" .. (a:position[2] - column + has_spaces) .. "l"
+    else
+      let filename = ""
+    endif
+  else
+    let filename = ""
+  endif
+
+  if filename !=# ""
     if !exists("b:vimcord_uploaded_files")
       let b:vimcord_uploaded_files = []
     endif
     call add(b:vimcord_uploaded_files, filename)
-    echo "Appended file: '" .. filename .. "'"
+    echo "Appended file!"
+
+    if exists(":AirlineRefresh")
+      AirlineRefresh!
+    endif
   endif
 endfunction
 

@@ -238,14 +238,17 @@ TODOs
 - Planned soon
     - Make `<c-g>` and `<a-g>` better
         - Show all "media" (such as previews and opengraph videos) with the latter, not just opengraph images
-    - Sorting the main buffer based on message channel id
-        - Difficult because of extmarks
     - Closing reply buffer just hides it
+    - Color @s (from raw content)
+    - Fuzzier member search (nicknames)
+    - Discord disconnection does not appear to change client state (displayed in statusline)
 
 - Unplanned - maybe soon?
     - Display user connection status (sign column tricks?)
-    - Separate discord content out from "normal" reply window/message window pipeline (partially done)
-    - Message deletion doesn't affect the first line of a message (requires the buffer knowing about Discord)
+    - Deleting the first of two messages by the same author also deletes the author (the first line of the first message)
+        - requires the buffer knowing about Discord
+    - Sorting the main buffer based on message channel id
+        - Difficult because of extmarks
 
 - Future work
     - Per-channel buffers: keep main accumulator, but extras can be opened (especially for muted channels)

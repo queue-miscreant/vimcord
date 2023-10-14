@@ -319,10 +319,10 @@ function vimcord#buffer#scroll_cursor(total_lines_before)
     return
   endif
 
-  " until we're scrolled upward
+  " Save the window position
+  let window_position = winsaveview()
+  " until the bottom line is in view
   while line("w$") < line("$")
-    " Save the window position
-    let window_position = winsaveview()
     " Scroll down one line
     exe "normal \<c-e>"
     " Cursor was at the top of the screen

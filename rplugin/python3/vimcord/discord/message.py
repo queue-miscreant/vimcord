@@ -132,14 +132,18 @@ class Message:
         self.timestamp = utils.parse_time(data.get('timestamp'))
         self.tts = data.get('tts', False)
         self.pinned = data.get('pinned', False)
-        self.content = data.get('content')
+        self.content = data.get('content', '')
+        if "content" not in data:
+            import logging
+            log = logging.getLogger(__name__)
+            log.error("Retrieved data without content: %s", data)
         self.mention_everyone = data.get('mention_everyone')
-        self.embeds = data.get('embeds')
+        self.embeds = data.get('embeds', [])
         self.id = data.get('id')
         self.channel = data.get('channel')
         self.author = User(**data.get('author', {}))
         self.nonce = data.get('nonce')
-        self.attachments = data.get('attachments')
+        self.attachments = data.get('attachments', [])
         self.type = try_enum(MessageType, data.get('type'))
         if (referenced_message := data.get("referenced_message")) is not None:
             referenced_message.update({"channel": self.channel})

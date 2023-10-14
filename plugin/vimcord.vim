@@ -115,6 +115,9 @@ function! VimcordAirline(...)
     let w:airline_section_x = ""
     let w:airline_section_y = ""
     let w:airline_section_z = ""
+    if exists("b:vimcord_uploaded_files") && len(b:vimcord_uploaded_files) > 0
+      let w:airline_section_z = string(len(b:vimcord_uploaded_files))
+    endif
   endif
 endfunction
 

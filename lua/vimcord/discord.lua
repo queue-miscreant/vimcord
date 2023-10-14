@@ -29,7 +29,10 @@ local function wrap_discord(func, fetch_discord_id)
     --modify the first argument to use message_id instead of discord_message_id
     if fetch_discord_id ~= nil then
       discord_message_id = args[1]
-      local message_number = vim.call("vimcord#discord#local#get_message_number", discord_message_id)
+      local message_number = vim.api.nvim_buf_call(
+        buffer,
+        function() return vim.call("vimcord#discord#local#get_message_number", discord_message_id) end
+      )
       if message_number < 0 then return 0 end
 
       args[1] = message_number
