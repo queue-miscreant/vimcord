@@ -102,6 +102,7 @@ Keys
 | `C`       | `C`end DM         | Enter the reply buffer, targetting a direct message with the post's author
 | `<c-t>`   | (ctrl-t)          | Prompts the user for a channel name, as in the webapp's ctrl-t shortcut. When an existing channel is selected, enters the reply buffer targeting the channel.
 | `A`       | `A`ppend message  | Functions similarly to `<c-t>`, but with unmuted channels only.
+| `<c-r>`   | `R`efresh         | Attempt to reconnect to Discord, refreshing the client and websocket connections.
 | `gW`      | `g`et `W`hen      | Displays the post time of the message under the cursor
 | `K`       | `k` message       | Go to the message above the current one
 | `J`       | `j` message       | Go to the message below the current one

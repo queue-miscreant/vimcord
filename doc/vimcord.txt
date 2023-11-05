@@ -90,6 +90,9 @@ C       `C`end DM               Enter the reply buffer, targetting a direct
 A       `A`ppend message        Functions similarly to <c-t>, but with unmuted
                               channels only.
 
+<c-r>   `R`efresh               Attempt to reconnect to Discord, refreshing
+                              the client and websocket connections.
+
 gW      `g`et `W`hen              Displays the post time of the message under
                               the cursor
 

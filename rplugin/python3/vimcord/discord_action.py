@@ -238,7 +238,13 @@ class DiscordAction:
          )
 
     async def try_reconnect(self):
-        self.discord.task.connect()
+        client_closed = await self.discord.awaitable.http.session.closed()
+        if client_closed:
+            self.plugin.notify("Session was closed! Trying to reconnect...", 0)
+            self.discord.task.http.recreate()
+            await asyncio.sleep(1)
+        self.plugin.notify("Reconnecting to websocket...", 0)
+        await self.discord.awaitable.connect()
 
     def get_channel_members(self, channel_id):
         if (channel := self.bridge.get_channel(channel_id)) is None:
@@ -258,12 +264,14 @@ class DiscordAction:
         try:
             is_not_connected = await self.discord.awaitable.is_closed()
             is_logged_in = await self.discord.awaitable.is_logged_in()
+            session_closed = await self.discord.awaitable.http.session.closed()
         except:
             is_not_connected = True
             is_logged_in = False
+            session_closed = True
 
         self.plugin.nvim.async_call(
             self.plugin.nvim.api.call_function,
             "vimcord#discord#local#set_connection_state",
-            [daemon_conneceted, is_not_connected, is_logged_in]
+            [daemon_conneceted, is_not_connected or session_closed, is_logged_in]
         )

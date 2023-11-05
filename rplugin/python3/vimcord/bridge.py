@@ -360,6 +360,9 @@ class DiscordBridge:
 
     async def on_error(self, exc_type, exc_message):
         '''On error received from server'''
+        if isinstance(exc_type, RuntimeError) and "already waiting for the next message" in exc_message:
+            self.plugin.notify(f"Server attempted waiting for the next message twice", 3)
+            return
         self.plugin.notify(f"Server encountered error: {exc_message}")
         log.info(f"Server encountered error of type {exc_type!r} with message {exc_message!r}")
 
