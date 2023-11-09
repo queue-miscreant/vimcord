@@ -150,6 +150,7 @@ function vimcord#reply#create_reply_window(do_split)
     exe "below sbuffer " .. buffer
     resize 2
     setlocal winfixheight
+    " TODO: this is still bound slightly tightly to discord
     setlocal filetype=discord_reply
   endif
 

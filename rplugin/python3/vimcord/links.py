@@ -231,6 +231,8 @@ class SpecialOpeners:
         )
 
         who = re.sub("on (Twitter|X)", "", title or "")
+        if not isinstance(description, str):
+            description = ""
 
         disp = [
                 [["Twitter: ", "VimcordOGDefault"], [who, "VimcordOGTitle"]],

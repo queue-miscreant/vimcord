@@ -50,17 +50,17 @@ function vimcord#buffer#lines_by_message_number(message_number, ...)
   return [start_line, end_line]
 endfunction
 
-function vimcord#buffer#append(discord_message, reply, discord_extra, highlighted)
+function vimcord#buffer#append(message, reply, extra, highlighted)
   " BUFFER MODIFIABLE
   setlocal modifiable
 
   let message_number = len(b:vimcord_messages_to_extra_data)
-  call add(b:vimcord_messages_to_extra_data, a:discord_extra)
+  call add(b:vimcord_messages_to_extra_data, a:extra)
 
   let line_number = len(b:vimcord_lines_to_messages)
-  let new_line_count = len(a:discord_message)
+  let new_line_count = len(a:message)
 
-  let new_lines = map(a:discord_message, { k, v ->
+  let new_lines = map(a:message, { k, v ->
         \ (repeat(" ", k == 0 ? 0 : g:vimcord_shift_width)) . v
         \ })
 
@@ -68,7 +68,7 @@ function vimcord#buffer#append(discord_message, reply, discord_extra, highlighte
   call extend(b:vimcord_lines_to_messages, repeat([message_number], new_line_count))
 
   if len(a:reply) > 0
-    call insert(a:reply, [" ╓─", "discordReply"], 0)
+    call insert(a:reply, [" ╓─", "vimcordReply"], 0)
     call nvim_buf_set_extmark(
           \ 0,
           \ luaeval("vimcord.REPLY_NAMESPACE"),
@@ -92,7 +92,7 @@ function vimcord#buffer#append(discord_message, reply, discord_extra, highlighte
   " BUFFER NOT MODIFIABLE
 endfunction
 
-function vimcord#buffer#edit(message_number, discord_message, discord_extra, highlighted)
+function vimcord#buffer#edit(message_number, message, extra, highlighted)
   let [start_line, end_line] =
         \ vimcord#buffer#lines_by_message_number(a:message_number)
   if start_line > end_line
@@ -122,8 +122,8 @@ function vimcord#buffer#edit(message_number, discord_message, discord_extra, hig
         \ )
 
   " then set the rest of the line to the new contents
-  let new_line_count = len(a:discord_message)
-  let new_lines = map(a:discord_message, { k, v ->
+  let new_line_count = len(a:message)
+  let new_lines = map(a:message, { k, v ->
         \ (repeat(" ", k == 0 ? 0 : g:vimcord_shift_width)) . v
         \ })
   call append(start_line, new_lines)
@@ -135,7 +135,11 @@ function vimcord#buffer#edit(message_number, discord_message, discord_extra, hig
   let old_count = end_line - start_line + 1
 
   " set current lines
-  let b:vimcord_messages_to_extra_data[message_number] = a:discord_extra
+  if !exists("b:vimcord_messages_to_extra_data[message_number]")
+    let b:vimcord_messages_to_extra_data[message_number] = {}
+  endif
+  call extend(b:vimcord_messages_to_extra_data[message_number], a:extra)
+
   for i in range(min([new_line_count, old_count]))
     let b:vimcord_lines_to_messages[start_line + i] = message_number
   endfor

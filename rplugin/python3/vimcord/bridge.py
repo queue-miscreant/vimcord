@@ -333,7 +333,6 @@ class DiscordBridge:
                 "channel_id": post.channel.id,
                 "server_id":  (post.server.id if post.server is not None else None),
                 "reply_message_id": (post.referenced_message.id if post.referenced_message is not None else None),
-                "timestamp": utc_timestamp_to_iso(post.timestamp)
             },
             self._user.id in [i.id for i in post.mentions],
         )

@@ -7,12 +7,13 @@ syn match discordChannel "^[^ ].\+$" contains=discordServerName,discordChannelNa
 syn match discordServerName "^\([^#]\+\)#" containedin=discordChannel
 syn match discordChannelName "\([^#]\+\)$" containedin=discordChannel
 
+hi def link vimcordReply LineNr
+
 hi def link discordNone None
 hi def link discordServerName StatusLine
 hi def link discordChannelName StatusLineNC
-hi def link discordReply LineNr
 
-" Code shamelessly taken from AnsiEscPlugin
+" Code shamelessly taken from AnsiEscPlugin (https://github.com/vim-scripts/AnsiEsc.vim)
 function s:to_hex(color_number)
 " constant colors
   if a:color_number < 16
