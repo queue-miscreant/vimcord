@@ -104,7 +104,7 @@ def _get_opengraph(link, *args, user_agent=None):
     content_type, encoding = get_content_type(link, user_agent)
     url = link
 
-    if content_type == "text/html":
+    if content_type.startswith("text/"):
         for meta_tag in open_and_parse_meta(link, encoding, user_agent):
             prop = meta_tag.get("property")
             if not prop or not prop.startswith("og:"):
