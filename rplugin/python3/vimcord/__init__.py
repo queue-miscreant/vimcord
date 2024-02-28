@@ -1,5 +1,7 @@
 import base64
 import logging
+import os
+import re
 import sys
 import traceback
 
@@ -18,6 +20,36 @@ def unb64(string, initial="b64:"):
         string = base64.b64decode(string[len(initial):].encode()).decode()
     return string
 
+def search_latest_token(path):
+    '''
+    Search through `path` (which should be a discord config directory) for stored user tokens
+    Implementation taken from wodxgod/Discord-Token-Grabber
+    '''
+    path = os.path.join(path, 'Local Storage', 'leveldb')
+    tokens = {}
+
+    for file_name in os.listdir(path):
+        if not file_name.endswith('.log') and not file_name.endswith('.ldb'):
+            continue
+
+        file = os.path.join(path, file_name)
+        time = os.path.getmtime(file)
+        lines = []
+        with open(file, errors='ignore') as a:
+            lines = [line for line in map(lambda x: x.strip(), a.readlines()) if line]
+
+        for line in lines:
+            for regex in (r'[\w-]{24}\.[\w-]{6}\.[\w-]{27}', r'mfa\.[\w-]{84}'):
+                for token in re.findall(regex, line):
+                    if tokens.get(time) is None:
+                        tokens[time] = []
+                    tokens[time].append(token)
+
+    if not tokens:
+        return None
+    latest_key = sorted(tokens.keys(), reverse=True)[0]
+    return tokens[latest_key][-1]
+
 @pynvim.plugin
 class Vimcord:
     def __init__(self, nvim):
@@ -32,24 +64,26 @@ class Vimcord:
     def open_discord(self, bang):
         '''
         Get Discord credentials from global variables and attempt to log in.
-        If either the username or password is unset or empty, the user will be prompted.
+        If the token is unset or empty, the user will be prompted.
         '''
-        try:
-            discord_username = self.nvim.api.get_var("vimcord_discord_username")
-            discord_password = self.nvim.api.get_var("vimcord_discord_password")
-        except pynvim.NvimError:
-            discord_username = ""
-            discord_password = ""
-
-        # get login from user input
-        if not bang:
-            if not (discord_username and discord_password):
-                self.nvim.api.command("DiscordLogin")
+        discord_token = None
+        token_dir = self.nvim.api.get_var("vimcord_pull_token_dir")
+        # pull from nvim variable
+        if bang:
+            try:
+                discord_token = self.nvim.api.get_var("vimcord_discord_token")
+            except:
+                pass
+        # search key from directory
+        elif os.path.exists(token_dir):
+            discord_token = search_latest_token(token_dir)
+            if discord_token is None:
+                self.notify("Could not find any tokens from directory given!")
                 return
-
-            # base64 decode, if possible
-            discord_username = unb64(discord_username)
-            discord_password = unb64(discord_password)
+        # prompt user
+        elif not bang:
+            self.nvim.api.command("DiscordLogin")
+            return
 
         self.nvim.lua.vimcord.discord.create_window()
 
@@ -57,13 +91,15 @@ class Vimcord:
             self.bridge = DiscordBridge(self)
             log.info("Inited")
 
-        self.nvim.loop.create_task(
-            self.bridge.start_discord_client_server(
-                self.socket_path,
-                discord_username,
-                discord_password
+        if discord_token is not None:
+            self.nvim.loop.create_task(
+                self.bridge.start_discord_client_server(
+                    self.socket_path,
+                    discord_token,
+                )
             )
-        )
+        else:
+            self.notify("Could not login! No token could be found or was supplied.")
 
 
     @pynvim.command("KillDiscord", nargs=0)

@@ -5,8 +5,7 @@ endif
 
 lua require("vimcord")
 
-let g:vimcord_discord_username = get(g:, "vimcord_discord_username", "")
-let g:vimcord_discord_password = get(g:, "vimcord_discord_password", "")
+let g:vimcord_pull_token_dir = get(g:, "vimcord_pull_token_dir", "")
 
 let g:vimcord_dnd_paste_threshold = get(g:, "vimcord_dnd_paste_threshold", 8)
 let g:vimcord_shift_width = max([get(g:, "vimcord_shift_width", 4), 1])
@@ -46,13 +45,11 @@ let g:vimcord = {}
 
 function! VimcordLogin()
   try
-    let g:vimcord_discord_username = input("Discord username: ")
-    let g:vimcord_discord_password = inputsecret("Discord password: ")
+    let g:vimcord_discord_token = inputsecret("Discord token: ")
   catch
     " Ctrl-c given
     try
-      unlet g:vimcord_discord_username
-      unlet g:vimcord_discord_password
+      unlet g:vimcord_discord_token
     catch
     endtry
 
@@ -63,9 +60,8 @@ function! VimcordLogin()
     return
   endtry
 
-  if g:vimcord_discord_username ==# "" || g:vimcord_discord_password ==# ""
-    unlet g:vimcord_discord_username
-    unlet g:vimcord_discord_password
+  if g:vimcord_discord_token ==# ""
+    unlet g:vimcord_discord_token
 
     echohl ErrorMsg
     echo "Empty credentials given. Aborting login."
@@ -76,8 +72,7 @@ function! VimcordLogin()
 
   Discord!
 
-  unlet g:vimcord_discord_username
-  unlet g:vimcord_discord_password
+  unlet g:vimcord_discord_token
 endfunction
 
 command! -nargs=0 DiscordLogin call timer_start(0, { -> VimcordLogin() })

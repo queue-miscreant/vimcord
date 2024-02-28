@@ -68,7 +68,7 @@ class DiscordBridge:
             self._private_channels = await self.discord_pipe.awaitable.private_channels()
         return channel_id
 
-    async def start_discord_client_server(self, path, discord_username, discord_password):
+    async def start_discord_client_server(self, path, discord_token):
         '''Spawn a local discord server as a daemon and set the discord pipe object'''
         if self.discord_pipe is None:
             log.info("Starting client %s", path)
@@ -86,9 +86,9 @@ class DiscordBridge:
         else:
             log.info("Using existing client")
 
-        await self.preamble(discord_username, discord_password)
+        await self.preamble(discord_token)
 
-    async def preamble(self, discord_username, discord_password):
+    async def preamble(self, discord_token):
         '''
         When connecting to the daemon, check if the user is logged in and
         whether a connection has been established.
@@ -97,10 +97,7 @@ class DiscordBridge:
         is_not_connected = await self.discord_pipe.awaitable.is_closed()
         if not is_logged_in:
             log.info("Not logged in! Attempting to login and start discord connection...")
-            self.discord_pipe.task.start(
-                discord_username,
-                discord_password
-            )
+            self.discord_pipe.task.start(discord_token)
         else:
             if is_not_connected:
                 log.info("Not connected to discord! Attempting to reconnect...")
