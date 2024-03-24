@@ -1,7 +1,6 @@
 import base64
 import logging
 import os
-import re
 import sys
 import traceback
 
@@ -10,6 +9,7 @@ import vimcord.discord as discord
 from vimcord.bridge import DiscordBridge
 from vimcord.discord_action import DiscordAction
 from vimcord.local_discord_server import kill_server as kill_discord_server
+from vimcord.search_token import search_latest_token
 
 log = logging.getLogger("vimcord")
 log.setLevel(logging.ERROR)
@@ -19,36 +19,6 @@ def unb64(string, initial="b64:"):
     if string.startswith(initial):
         string = base64.b64decode(string[len(initial):].encode()).decode()
     return string
-
-def search_latest_token(path):
-    '''
-    Search through `path` (which should be a discord config directory) for stored user tokens
-    Implementation taken from wodxgod/Discord-Token-Grabber
-    '''
-    path = os.path.join(path, 'Local Storage', 'leveldb')
-    tokens = {}
-
-    for file_name in os.listdir(path):
-        if not file_name.endswith('.log') and not file_name.endswith('.ldb'):
-            continue
-
-        file = os.path.join(path, file_name)
-        time = os.path.getmtime(file)
-        lines = []
-        with open(file, errors='ignore') as a:
-            lines = [line for line in map(lambda x: x.strip(), a.readlines()) if line]
-
-        for line in lines:
-            for regex in (r'[\w-]{24}\.[\w-]{6}\.[\w-]{27}', r'mfa\.[\w-]{84}'):
-                for token in re.findall(regex, line):
-                    if tokens.get(time) is None:
-                        tokens[time] = []
-                    tokens[time].append(token)
-
-    if not tokens:
-        return None
-    latest_key = sorted(tokens.keys(), reverse=True)[0]
-    return tokens[latest_key][-1]
 
 @pynvim.plugin
 class Vimcord:
@@ -73,13 +43,15 @@ class Vimcord:
             try:
                 discord_token = self.nvim.api.get_var("vimcord_discord_token")
             except:
-                pass
+                self.notify("Command `:Discord!` expects login variable set")
+                return
         # search key from directory
         elif os.path.exists(token_dir):
             discord_token = search_latest_token(token_dir)
             if discord_token is None:
                 self.notify("Could not find any tokens from directory given!")
                 return
+            discord_token = ".".join(discord_token.split(".")[0:2])
         # prompt user
         elif not bang:
             self.nvim.api.command("DiscordLogin")
