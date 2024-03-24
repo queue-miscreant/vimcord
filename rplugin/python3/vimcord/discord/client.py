@@ -139,6 +139,7 @@ class Client:
     def __init__(self, *, loop=None, **options):
         self.ws = None
         self.email = None
+        self.user = None
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self._listeners = []
         self.cache_auth = options.get('cache_auth', True)
@@ -149,7 +150,7 @@ class Client:
         if max_messages is None or max_messages < 100:
             max_messages = 5000
 
-        self.connection = ConnectionState(self.dispatch, self.request_offline_members,
+        self.connection = ConnectionState(self, self.dispatch, self.request_offline_members,
                                           self._syncer, max_messages, loop=self.loop)
 
         connector = options.pop('connector', None)
@@ -287,14 +288,14 @@ class Client:
             raise InvalidArgument(fmt.format(destination))
 
     def __getattr__(self, name):
-        if name in ('user', 'servers', 'private_channels', 'messages', 'voice_clients'):
+        if name in ('servers', 'private_channels', 'messages', 'voice_clients'):
             return getattr(self.connection, name)
         else:
             msg = "'{}' object has no attribute '{}'"
             raise AttributeError(msg.format(self.__class__, name))
 
     def __setattr__(self, name, value):
-        if name in ('user', 'servers', 'private_channels', 'messages', 'voice_clients'):
+        if name in ('servers', 'private_channels', 'messages', 'voice_clients'):
             return setattr(self.connection, name, value)
         else:
             object.__setattr__(self, name, value)
@@ -341,6 +342,7 @@ class Client:
         data = await self.http.static_login(token, bot=is_bot)
         self.email = data.get('email', None)
         self.connection.is_bot = is_bot
+        self.user = User(**data)
         self._is_logged_in.set()
 
     async def _login_2(self, email, password, **kwargs):
@@ -350,16 +352,18 @@ class Client:
         if self.cache_auth:
             token = self._get_cache_token(email, password)
             try:
-                await self.http.static_login(token, bot=False)
+                data = await self.http.static_login(token, bot=False)
             except:
                 log.info('cache auth token is out of date')
             else:
                 self._is_logged_in.set()
+                self.user = User(**data)
                 return
 
 
-        await self.http.email_login(email, password)
+        data = await self.http.email_login(email, password)
         self.email = email
+        self.user = User(**data)
         self._is_logged_in.set()
 
         # since we went through all this trouble

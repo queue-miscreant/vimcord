@@ -51,9 +51,10 @@ log = logging.getLogger(__name__)
 ReadyState = namedtuple('ReadyState', ('launch', 'servers'))
 
 class ConnectionState:
-    def __init__(self, dispatch, chunker, syncer, max_messages, *, loop):
+    def __init__(self, client, dispatch, chunker, syncer, max_messages, *, loop):
         self.loop = loop
         self.max_messages = max_messages
+        self.client = client
         self.dispatch = dispatch
         self.chunker = chunker
         self.syncer = syncer
@@ -62,7 +63,7 @@ class ConnectionState:
         self.clear()
 
     def clear(self):
-        self.user = None
+        self.client.user = None
         self.sequence = None
         self.session_id = None
         self._calls = {}
@@ -154,7 +155,7 @@ class ConnectionState:
 
     def _add_server_from_data(self, guild):
         server = Server(**guild)
-        Server.me = property(lambda s: s.get_member(self.user.id))
+        Server.me = property(lambda s: s.get_member(self.client.user.id))
         Server.voice_client = property(lambda s: self._get_voice_client(s.id))
         self._add_server(server)
         return server
@@ -206,7 +207,7 @@ class ConnectionState:
 
     def parse_ready(self, data):
         self._ready_state = ReadyState(launch=asyncio.Event(), servers=[])
-        self.user = User(**data['user'])
+        self.client.user = User(**data['user'])
         guilds = data.get('guilds')
 
         servers = self._ready_state.servers
@@ -216,7 +217,7 @@ class ConnectionState:
                 servers.append(server)
 
         for pm in data.get('private_channels'):
-            self._add_private_channel(PrivateChannel(self.user, **pm))
+            self._add_private_channel(PrivateChannel(self.client.user, **pm))
 
         for pres in data.get('presences'):
             dm = self._get_private_channel_by_user(pres['user']['id'])
@@ -268,7 +269,7 @@ class ConnectionState:
             emoji = self._get_reaction_emoji(**data.pop('emoji'))
             reaction = utils.get(message.reactions, emoji=emoji)
 
-            is_me = data['user_id'] == self.user.id
+            is_me = data['user_id'] == self.client.user.id
 
             if not reaction:
                 reaction = Reaction(
@@ -303,7 +304,7 @@ class ConnectionState:
                 return
 
             reaction.count -= 1
-            if data['user_id'] == self.user.id:
+            if data['user_id'] == self.client.user.id:
                 reaction.me = False
             if reaction.count == 0:
                 message.reactions.remove(reaction)
@@ -352,7 +353,7 @@ class ConnectionState:
         self.dispatch('member_update', old_member, member)
 
     def parse_user_update(self, data):
-        self.user = User(**data)
+        self.client.user = User(**data)
 
     def parse_channel_delete(self, data):
         server =  self._get_server(data.get('guild_id'))
@@ -385,7 +386,7 @@ class ConnectionState:
         ch_type = try_enum(ChannelType, data.get('type'))
         channel = None
         if ch_type in (ChannelType.group, ChannelType.private):
-            channel = PrivateChannel(self.user, **data)
+            channel = PrivateChannel(self.client.user, **data)
             self._add_private_channel(channel)
         else:
             server = self._get_server(data.get('guild_id'))
@@ -644,7 +645,7 @@ class ConnectionState:
         server = self._get_server(data.get('guild_id'))
         if server is not None:
             channel = server.get_channel(data.get('channel_id'))
-            if data.get('user_id') == self.user.id:
+            if data.get('user_id') == self.client.user.id:
                 voice = self._get_voice_client(server.id)
                 if voice is not None:
                     voice.channel = channel
@@ -697,8 +698,8 @@ class ConnectionState:
 
     def _get_member(self, channel, id):
         if channel.is_private:
-            if id == self.user.id:
-                return self.user
+            if id == self.client.user.id:
+                return self.client.user
             return utils.get(channel.recipients, id=id)
         else:
             return channel.server.get_member(id)
