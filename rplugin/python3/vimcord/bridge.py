@@ -97,7 +97,7 @@ class DiscordBridge:
         is_not_connected = await self.discord_pipe.awaitable.is_closed()
         if not is_logged_in:
             log.info("Not logged in! Attempting to login and start discord connection...")
-            self.discord_pipe.task.start(discord_token)
+            self.discord_pipe.task.start(discord_token, bot=False)
         else:
             if is_not_connected:
                 log.info("Not connected to discord! Attempting to reconnect...")
