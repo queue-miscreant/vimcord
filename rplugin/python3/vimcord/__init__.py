@@ -37,12 +37,15 @@ class Vimcord:
         If the token is unset or empty, the user will be prompted.
         '''
         discord_token = None
+        try:
+            discord_token = self.nvim.api.get_var("vimcord_discord_token")
+        except:
+            pass
+
         token_dir = self.nvim.api.get_var("vimcord_pull_token_dir")
         # pull from nvim variable
         if bang:
-            try:
-                discord_token = self.nvim.api.get_var("vimcord_discord_token")
-            except:
+            if discord_token is None:
                 self.notify("Command `:Discord!` expects login variable set")
                 return
         # search key from directory
@@ -51,11 +54,11 @@ class Vimcord:
             if discord_token is None:
                 self.notify("Could not find any tokens from directory given!")
                 return
-            discord_token = ".".join(discord_token.split(".")[0:2])
         # prompt user
         elif not bang:
-            self.nvim.api.command("DiscordLogin")
-            return
+            if discord_token is None:
+                self.nvim.api.command("DiscordLogin")
+                return
 
         self.nvim.lua.vimcord.discord.create_window()
 

@@ -7,7 +7,7 @@ log.setLevel(logging.DEBUG)
 
 def get_all_tokens(path):
     '''
-    Search through `path` (which should be a discord config directory) for stored user tokens
+    Search through `path` (which should be a Discord config directory) for stored user tokens
     Implementation taken from wodxgod/Discord-Token-Grabber
     '''
     path = os.path.join(path, 'Local Storage', 'leveldb')
@@ -25,7 +25,7 @@ def get_all_tokens(path):
             lines = [line for line in map(lambda x: x.strip(), a.readlines()) if line]
 
         for line in lines:
-            for regex in (r'[\w-]{24}\.[\w-]{6}\.[\w-]{27}', r'mfa\.[\w-]{84}'):
+            for regex in (r'[\w-]{24}\.[\w-]{6}\.[\w-]{38}', r'mfa\.[\w-]{84}'):
                 for token in re.findall(regex, line):
                     if tokens.get(time) is None:
                         tokens[time] = []
@@ -42,9 +42,9 @@ def search_latest_token(path):
     if not tokens:
         return None
     latest_key = sorted(tokens.keys(), reverse=True)[0]
-    return tokens[latest_key][-1]
+    return tokens[latest_key][0]
 
 if __name__ == "__main__":
     import sys
     logging.basicConfig()
-    get_all_tokens(sys.argv[1])
+    print(get_all_tokens(sys.argv[1]))
